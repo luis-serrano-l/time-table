@@ -47,3 +47,8 @@ export type LogState = {
 };
 
 export const HUES = 8;
+
+/** Planned lengths, in minutes. */
+export const MIN_LEN = 5;
+export const LEN_STEP = 5;
+export const MAX_LEN = 480;

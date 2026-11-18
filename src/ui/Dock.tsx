@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import type { LogState } from '../log/types';
 import { actions } from '../store/store';
 import { clock, dur } from './format';
+import { LengthSelect } from './LengthSelect';
 
 type Props = { state: LogState; now: number; perTask: Map<string, number> };
 
@@ -9,6 +10,7 @@ type Props = { state: LogState; now: number; perTask: Map<string, number> };
 export function Dock({ state, now, perTask }: Props) {
   const [adding, setAdding] = useState(false);
   const [title, setTitle] = useState('');
+  const [length, setLength] = useState(30);
   const open = state.open;
   const task = open?.taskId ? state.tasks.get(open.taskId) : undefined;
   const parked = state.parked ? state.tasks.get(state.parked) : undefined;
@@ -18,7 +20,7 @@ export function Dock({ state, now, perTask }: Props) {
     e.preventDefault();
     const t = title.trim();
     if (!t) return;
-    actions.startNew(t);
+    actions.startNew(t, length);
     setTitle('');
     setAdding(false);
   }
@@ -35,6 +37,7 @@ export function Dock({ state, now, perTask }: Props) {
           aria-label="Name of the task to start now"
           maxLength={80}
         />
+        <LengthSelect value={length} onChange={setLength} />
         <button className="btn btn-solid" type="submit" disabled={!title.trim()}>
           Start
         </button>
@@ -79,6 +82,11 @@ export function Dock({ state, now, perTask }: Props) {
         {open?.kind === 'task' && (
           <button className="btn" onClick={actions.pause}>
             Pause
+          </button>
+        )}
+        {open?.kind === 'task' && (
+          <button className="btn btn-solid" onClick={actions.finish}>
+            Finish
           </button>
         )}
         {open?.kind === 'interruption' ? (

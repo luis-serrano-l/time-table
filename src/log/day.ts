@@ -14,6 +14,17 @@ export function dayRange(key: DayKey): [number, number] {
   return [new Date(y, m - 1, d).getTime(), new Date(y, m - 1, d + 1).getTime()];
 }
 
+/** Minutes from local midnight on the wall clock, so it matches what a clock shows on any day. */
+export function wallMin(ms: number): number {
+  const d = new Date(ms);
+  return d.getHours() * 60 + d.getMinutes() + d.getSeconds() / 60 + d.getMilliseconds() / 60000;
+}
+
+/** Where a new plan starts: the next quarter hour. */
+export function defaultStartMin(now: number): number {
+  return Math.min(23 * 60, Math.ceil(Math.floor(wallMin(now)) / 15) * 15);
+}
+
 export type DaySegment = {
   kind: Segment['kind'];
   taskId?: string;
@@ -36,14 +47,15 @@ export function daySegments(state: LogState, key: DayKey, now: number): DaySegme
     const start = Math.max(seg.start, from);
     const end = Math.min(segEnd, to);
     if (end <= start && !(seg.end === undefined && start >= from && start < to)) continue;
+    const startMin = start === from ? 0 : wallMin(start);
     out.push({
       kind: seg.kind,
       taskId: seg.taskId,
       start,
       end,
       running: seg.end === undefined,
-      startMin: (start - from) / 60000,
-      endMin: (end - from) / 60000,
+      startMin,
+      endMin: Math.max(startMin, end === to ? 24 * 60 : wallMin(end)),
       wholeMs: segEnd - seg.start,
     });
   }

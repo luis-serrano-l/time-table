@@ -1,8 +1,10 @@
 import { useState, type FormEvent } from 'react';
 import type { PlanBlock } from '../log/day';
-import type { LogState, Plan } from '../log/types';
+import { defaultStartMin } from '../log/day';
+import { LEN_STEP, MAX_LEN, MIN_LEN, type LogState, type Plan } from '../log/types';
 import { actions } from '../store/store';
 import { dur, hhmm, parseHhmm } from './format';
+import { LengthSelect } from './LengthSelect';
 
 type Props = {
   state: LogState;
@@ -13,11 +15,10 @@ type Props = {
   onClose: () => void;
 };
 
-const STEP = 15;
-
 /** The plan as a list: a sheet on a phone, a side column on a wide screen. */
 export function PlanPanel({ state, plan, blocks, perTask, open, onClose }: Props) {
   const [title, setTitle] = useState('');
+  const [length, setLength] = useState(30);
   const planned = new Set(plan?.taskIds ?? []);
   const later = [...state.tasks.values()].filter((t) => !t.removed && !t.done && !planned.has(t.id));
   const total = blocks.reduce((sum, b) => sum + b.task.estimateMin, 0);
@@ -27,7 +28,7 @@ export function PlanPanel({ state, plan, blocks, perTask, open, onClose }: Props
     e.preventDefault();
     const t = title.trim();
     if (!t) return;
-    actions.addToPlan(t);
+    actions.addToPlan(t, length);
     setTitle('');
   }
 
@@ -47,7 +48,7 @@ export function PlanPanel({ state, plan, blocks, perTask, open, onClose }: Props
           <input
             type="time"
             step={300}
-            value={hhmm(plan?.startMin ?? defaultStart())}
+            value={hhmm(plan?.startMin ?? defaultStartMin(Date.now()))}
             onChange={(e) => {
               const m = parseHhmm(e.target.value);
               if (m !== null) actions.setPlanStart(m);
@@ -89,16 +90,16 @@ export function PlanPanel({ state, plan, blocks, perTask, open, onClose }: Props
               <div className="stepper">
                 <button
                   aria-label={`Shorten ${b.task.title}`}
-                  disabled={b.task.estimateMin <= STEP}
-                  onClick={() => actions.edit(b.task.id, { estimateMin: b.task.estimateMin - STEP })}
+                  disabled={b.task.estimateMin <= MIN_LEN}
+                  onClick={() => actions.edit(b.task.id, { estimateMin: Math.max(MIN_LEN, b.task.estimateMin - LEN_STEP) })}
                 >
                   −
                 </button>
                 <output>{dur(b.task.estimateMin * 60000)}</output>
                 <button
                   aria-label={`Lengthen ${b.task.title}`}
-                  disabled={b.task.estimateMin >= 480}
-                  onClick={() => actions.edit(b.task.id, { estimateMin: b.task.estimateMin + STEP })}
+                  disabled={b.task.estimateMin >= MAX_LEN}
+                  onClick={() => actions.edit(b.task.id, { estimateMin: Math.min(MAX_LEN, b.task.estimateMin + LEN_STEP) })}
                 >
                   +
                 </button>
@@ -137,6 +138,7 @@ export function PlanPanel({ state, plan, blocks, perTask, open, onClose }: Props
             aria-label="New task for today"
             maxLength={80}
           />
+          <LengthSelect value={length} onChange={setLength} />
           <button className="btn btn-solid" type="submit" disabled={!title.trim()}>
             Add
           </button>
@@ -164,9 +166,4 @@ export function PlanPanel({ state, plan, blocks, perTask, open, onClose }: Props
       </aside>
     </>
   );
-}
-
-function defaultStart() {
-  const d = new Date();
-  return Math.min(23 * 60, Math.ceil((d.getHours() * 60 + d.getMinutes()) / 15) * 15);
 }

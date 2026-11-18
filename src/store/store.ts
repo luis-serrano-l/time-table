@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react';
-import { dayKey } from '../log/day';
+import { dayKey, defaultStartMin } from '../log/day';
 import { emptyState, reduce } from '../log/reduce';
 import type { DayKey, LogEvent, LogState } from '../log/types';
 import { fromBackup, mergeLogs, toBackup } from './backup';
@@ -58,20 +58,18 @@ const uid = () => crypto.randomUUID();
 const today = () => dayKey(Date.now());
 
 function planFor(day: DayKey) {
-  return snap.state.plans.get(day) ?? { taskIds: [], startMin: defaultStartMin() };
+  return snap.state.plans.get(day) ?? { taskIds: [], startMin: defaultStartMin(Date.now()) };
 }
 
-/** Next quarter hour from now. */
-function defaultStartMin() {
-  const d = new Date();
-  return Math.min(23 * 60, Math.ceil((d.getHours() * 60 + d.getMinutes()) / 15) * 15);
-}
+const isRunning = (taskId: string) => {
+  const open = snap.state.open;
+  return open?.kind === 'task' && open.taskId === taskId;
+};
 
 export const actions = {
   /** Tap a task: start it, or pause it if it is the one running. */
   toggle(taskId: string) {
-    const open = snap.state.open;
-    if (open?.kind === 'task' && open.taskId === taskId) append({ type: 'stopped' });
+    if (isRunning(taskId)) append({ type: 'stopped' });
     else append({ type: 'started', taskId });
   },
   pause() {
@@ -84,10 +82,10 @@ export const actions = {
     append({ type: 'interruption.ended' });
   },
   /** Something unplanned came up: name it and it is already running. */
-  startNew(title: string) {
+  startNew(title: string, estimateMin = 30) {
     const taskId = uid();
     append(
-      { type: 'task.added', taskId, title, estimateMin: 30 },
+      { type: 'task.added', taskId, title, estimateMin },
       { type: 'started', taskId },
     );
   },
@@ -106,12 +104,15 @@ export const actions = {
   },
   unplan(taskId: string) {
     const plan = planFor(today());
-    append({
+    const off: New = {
       type: 'plan.set',
       day: today(),
       taskIds: plan.taskIds.filter((id) => id !== taskId),
       startMin: plan.startMin,
-    });
+    };
+    // A task taken off the plan must not keep running out of sight.
+    if (isRunning(taskId)) append({ type: 'stopped' }, off);
+    else append(off);
   },
   move(taskId: string, to: number) {
     const plan = planFor(today());
@@ -128,13 +129,17 @@ export const actions = {
     append({ type: 'task.edited', taskId, ...patch });
   },
   setDone(taskId: string, done: boolean) {
+    if (done && isRunning(taskId)) append({ type: 'stopped' }, { type: 'task.done', taskId, done });
+    else append({ type: 'task.done', taskId, done });
+  },
+  /** Done with the running task, whether or not its planned time is up. */
+  finish() {
     const open = snap.state.open;
-    if (done && open?.kind === 'task' && open.taskId === taskId) {
-      append({ type: 'stopped' }, { type: 'task.done', taskId, done });
-    } else append({ type: 'task.done', taskId, done });
+    if (open?.kind === 'task' && open.taskId) actions.setDone(open.taskId, true);
   },
   remove(taskId: string) {
-    append({ type: 'task.removed', taskId });
+    if (isRunning(taskId)) append({ type: 'stopped' }, { type: 'task.removed', taskId });
+    else append({ type: 'task.removed', taskId });
   },
   dismissError() {
     publish({ error: null });

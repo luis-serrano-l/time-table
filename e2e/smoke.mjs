@@ -110,12 +110,33 @@ try {
   await expect(page.locator('.tally'), 'Logged53m');
   await ctx.setOffline(false);
 
+  // A 5-minute task gets its own room on the timeline, and Finish ends it early
+  await page.getByRole('button', { name: 'Plan', exact: true }).click();
+  await page.getByLabel('New task for today').fill('Stretch');
+  await page.locator('.plan-add select').selectOption('5');
+  await page.getByRole('button', { name: 'Add', exact: true }).click();
+  await page.getByRole('button', { name: 'Done', exact: true }).click();
+  const boxes = await page.locator('.slot').evaluateAll((els) =>
+    els.map((el) => el.getBoundingClientRect()).map((r) => ({ top: r.top, bottom: r.bottom })).sort((a, b) => a.top - b.top),
+  );
+  assert.equal(boxes.length, 4);
+  for (let i = 1; i < boxes.length; i++) {
+    assert.ok(boxes[i].top >= boxes[i - 1].bottom - 0.5, `slot ${i} overlaps the one before it`);
+  }
+  await page.locator('.slot', { hasText: 'Stretch' }).click();
+  await page.clock.fastForward('02:00');
+  await expect(dock, 'Stretch');
+  await shot('5-short');
+  await page.getByRole('button', { name: 'Finish', exact: true }).click();
+  await expect(dock, 'Nothing running');
+  assert.equal(await page.locator('.slot.is-done', { hasText: 'Stretch' }).count(), 1);
+
   if (SHOTS) {
     await page.emulateMedia({ colorScheme: 'dark' });
-    await shot('5-dark');
+    await shot('6-dark');
     await page.setViewportSize({ width: 1280, height: 820 });
     await page.emulateMedia({ colorScheme: 'light' });
-    await shot('6-desktop');
+    await shot('7-desktop');
   }
   assert.deepEqual(errors, []);
   console.log('smoke test passed');

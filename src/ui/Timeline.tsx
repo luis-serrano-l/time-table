@@ -3,8 +3,10 @@ import { DEEP_MIN, type DaySegment, type PlanBlock } from '../log/day';
 import type { LogState } from '../log/types';
 import { actions } from '../store/store';
 import { dur, hhmm } from './format';
+import { makeScale } from './scale';
 
-const PX_PER_MIN = 1.5;
+/** Below this height a planned block shows on one line. */
+const COMPACT_PX = 40;
 
 type Props = {
   state: LogState;
@@ -25,7 +27,8 @@ export function Timeline({ state, blocks, segs, perTask, now, onPlan }: Props) {
   const ends = [nowMin + 240, ...blocks.map((b) => b.endMin), ...segs.map((s) => s.endMin)];
   const fromH = Math.max(0, Math.floor(Math.min(...starts) / 60));
   const toH = Math.min(24, Math.ceil((Math.max(...ends) + 30) / 60));
-  const y = (min: number) => (min - fromH * 60) * PX_PER_MIN;
+  // Hours holding very short blocks are drawn taller, so nothing overlaps.
+  const { y } = makeScale(fromH, toH, blocks);
   const hours = Array.from({ length: toH - fromH + 1 }, (_, i) => fromH + i);
 
   // Open with "now" a third of the way down, scrolling only the timeline.
@@ -59,18 +62,22 @@ export function Timeline({ state, blocks, segs, perTask, now, onPlan }: Props) {
             const done = perTask.get(b.task.id) ?? 0;
             const running = runningId === b.task.id;
             const over = done > b.task.estimateMin * 60000;
+            const height = y(b.endMin) - y(b.startMin) - 2;
+            const compact = height < COMPACT_PX;
             return (
               <button
                 key={b.task.id}
-                className={`slot hue-${b.task.hue}${running ? ' is-running' : ''}${b.task.done ? ' is-done' : ''}`}
-                style={{ top: y(b.startMin), height: Math.max(26, (b.endMin - b.startMin) * PX_PER_MIN - 3) }}
+                className={`slot hue-${b.task.hue}${running ? ' is-running' : ''}${b.task.done ? ' is-done' : ''}${compact ? ' is-compact' : ''}`}
+                style={{ top: y(b.startMin), height }}
                 onClick={() => actions.toggle(b.task.id)}
                 aria-pressed={running}
                 aria-label={`${b.task.title}, planned ${hhmm(b.startMin)} for ${dur(b.task.estimateMin * 60000)}, ${dur(done)} logged. ${running ? 'Pause' : 'Start'}`}
               >
                 <span className="slot-title">{b.task.title}</span>
                 <span className={`slot-meta${over ? ' is-over' : ''}`}>
-                  {dur(done)} of {dur(b.task.estimateMin * 60000)}
+                  {dur(done)}
+                  {compact ? '/' : ' of '}
+                  {dur(b.task.estimateMin * 60000)}
                 </span>
               </button>
             );
@@ -80,7 +87,7 @@ export function Timeline({ state, blocks, segs, perTask, now, onPlan }: Props) {
         <div className="tl-col tl-actual">
           {segs.map((s, i) => {
             const task = s.taskId ? state.tasks.get(s.taskId) : undefined;
-            const h = Math.max(3, (s.endMin - s.startMin) * PX_PER_MIN);
+            const h = Math.max(3, y(s.endMin) - y(s.startMin));
             const deep = s.kind === 'task' && s.wholeMs >= DEEP_MIN * 60000;
             const label = s.kind === 'interruption' ? 'Interruption' : (task?.title ?? 'Task');
             const cls = `seg ${s.kind === 'interruption' ? 'seg-int' : `hue-${task?.hue ?? 0}`}${s.running ? ' is-running' : ''}${deep ? ' is-deep' : ''}`;

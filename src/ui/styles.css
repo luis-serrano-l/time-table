@@ -56,7 +56,8 @@ body {
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
   color: inherit;
 }
@@ -351,6 +352,25 @@ ul {
   font-weight: 650;
 }
 
+.slot.is-compact {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+}
+
+.slot.is-compact .slot-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 0.86rem;
+  line-height: 1;
+}
+
+.slot.is-compact .slot-meta {
+  font-size: 0.72rem;
+  line-height: 1;
+}
+
 /* What happened is solid. */
 .seg {
   position: absolute;
@@ -523,6 +543,17 @@ input:not([type='file']) {
   background: var(--paper);
 }
 
+select.length {
+  flex: none;
+  min-height: 40px;
+  padding: 0 8px;
+  border: 1.5px solid var(--rule);
+  border-radius: 10px;
+  background: var(--paper);
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+
 @media (max-width: 520px) {
   .dock {
     flex-wrap: wrap;
@@ -534,7 +565,8 @@ input:not([type='file']) {
     flex: 1;
   }
   .dock-actions .btn:not(.btn-plus) {
-    flex: 1;
+    flex: 1 1 auto;
+    padding: 0 10px;
   }
   .dock-add .btn {
     flex: 1;
