@@ -4,15 +4,26 @@ import { emptyState, reduce } from '../log/reduce';
 import { MAX_LEN, MIN_LEN, type DayKey, type LogEvent, type LogState } from '../log/types';
 import { fromBackup, mergeLogs, toBackup } from './backup';
 import { clearEvents, loadEvents, saveEvents } from './db';
+import { clearLocal } from './local';
 
-type Snapshot = { ready: boolean; state: LogState; error: string | null; count: number };
+type Snapshot = {
+  ready: boolean;
+  state: LogState;
+  error: string | null;
+  count: number;
+  /** What the last change was, while it can still be taken back. */
+  undo: string | null;
+};
 
 let events: LogEvent[] = [];
-let snap: Snapshot = { ready: false, state: emptyState(), error: null, count: 0 };
+let snap: Snapshot = { ready: false, state: emptyState(), error: null, count: 0, undo: null };
 const listeners = new Set<() => void>();
 
 function publish(patch: Partial<Snapshot> = {}) {
-  snap = { ...snap, state: reduce(events), count: events.length, ...patch };
+  // Any change to the log ends the chance to undo the one before it.
+  inverse = null;
+  clearTimeout(undoTimer);
+  snap = { ...snap, state: reduce(events), count: events.length, undo: null, ...patch };
   listeners.forEach((l) => l());
 }
 
@@ -53,6 +64,28 @@ function append(...items: New[]) {
     publish({ error: 'The last change could not be saved. Export a backup now.' }),
   );
 }
+
+// Undo writes new entries that reverse the last change. Nothing is ever taken
+// out of the log: it is already saved and may already be in a backup.
+const UNDO_MS = 8000;
+let inverse: New[] | null = null;
+let undoTimer: ReturnType<typeof setTimeout> | undefined;
+
+function offerUndo(label: string, items: New[]) {
+  inverse = items;
+  snap = { ...snap, undo: label };
+  listeners.forEach((l) => l());
+  clearTimeout(undoTimer);
+  undoTimer = setTimeout(() => {
+    inverse = null;
+    snap = { ...snap, undo: null };
+    listeners.forEach((l) => l());
+  }, UNDO_MS);
+}
+
+/** Picks the timer back up where it was stopped, if this change stopped it. */
+const resume = (taskId: string, wasRunning: boolean): New[] =>
+  wasRunning ? [{ type: 'started', taskId, reopen: true }] : [];
 
 const uid = () => crypto.randomUUID();
 const today = () => dayKey(Date.now());
@@ -117,8 +150,18 @@ export const actions = {
     // A repeating task would come straight back, so this day's occurrence is skipped.
     if (entry.ruled) items.push({ type: 'entry.set', day, taskId, skip: true });
     // A task taken off today's plan must not keep running out of sight.
-    if (day === today() && isRunning(taskId)) items.unshift({ type: 'stopped' });
+    const stops = day === today() && isRunning(taskId);
+    if (stops) items.unshift({ type: 'stopped' });
     append(...items);
+    const back: New[] = [{ type: 'plan.set', day, taskIds: plan.taskIds, startMin: plan.startMin }];
+    if (entry.ruled) back.push({ type: 'entry.set', day, taskId, skip: false });
+    offerUndo(`Took ${entry.task.title} off ${day === today() ? 'today' : 'that day'}`, [...back, ...resume(taskId, stops)]);
+  },
+  /** Put several tasks on a day at once, after what is already there. */
+  planMany(day: DayKey, taskIds: string[]) {
+    const plan = planFor(day);
+    const more = taskIds.filter((id) => !plan.taskIds.includes(id));
+    if (more.length) append({ type: 'plan.set', day, taskIds: [...plan.taskIds, ...more], startMin: plan.startMin });
   },
   /** Move a task one place earlier (-1) or later (1) among those that are not pinned to a time. */
   move(day: DayKey, taskId: string, by: -1 | 1) {
@@ -203,15 +246,28 @@ export const actions = {
     const rule = activeRule(snap.state, taskId);
     const items: New[] = [{ type: 'task.done', taskId, done: true }];
     if (rule) items.push({ type: 'rule.set', taskId, from: addDays(today(), 1), days: [], lengthMin: rule.lengthMin });
-    if (isRunning(taskId)) items.unshift({ type: 'stopped' });
+    const stops = isRunning(taskId);
+    if (stops) items.unshift({ type: 'stopped' });
     append(...items);
+    const back: New[] = [{ type: 'task.done', taskId, done: false }];
+    if (rule) {
+      back.push({ type: 'rule.set', taskId, from: addDays(today(), 1), days: rule.days, atMin: rule.atMin, lengthMin: rule.lengthMin });
+    }
+    offerUndo(`Finished ${snap.state.tasks.get(taskId)?.title ?? 'the project'}`, [...back, ...resume(taskId, stops)]);
   },
   setDone(day: DayKey, taskId: string, done: boolean) {
     const mark: New = isRepeating(snap.state, taskId)
       ? { type: 'task.done', taskId, done, day }
       : { type: 'task.done', taskId, done };
-    if (done && isRunning(taskId)) append({ type: 'stopped' }, mark);
+    const stops = done && isRunning(taskId);
+    if (stops) append({ type: 'stopped' }, mark);
     else append(mark);
+    if (done) {
+      offerUndo(`Finished ${snap.state.tasks.get(taskId)?.title ?? 'the task'}`, [
+        { ...mark, done: false } as New,
+        ...resume(taskId, stops),
+      ]);
+    }
   },
   /** Done with the running task, whether or not its planned time is up. */
   finish() {
@@ -219,8 +275,22 @@ export const actions = {
     if (open?.kind === 'task' && open.taskId) actions.setDone(today(), open.taskId, true);
   },
   remove(taskId: string) {
-    if (isRunning(taskId)) append({ type: 'stopped' }, { type: 'task.removed', taskId });
+    const stops = isRunning(taskId);
+    if (stops) append({ type: 'stopped' }, { type: 'task.removed', taskId });
     else append({ type: 'task.removed', taskId });
+    offerUndo(`Deleted ${snap.state.tasks.get(taskId)?.title ?? 'the task'}`, [
+      { type: 'task.removed', taskId, removed: false },
+      ...resume(taskId, stops),
+    ]);
+  },
+  /** Take back the last delete, take-off or finish. */
+  undo() {
+    const items = inverse;
+    if (items) append(...items);
+  },
+  /** The timer was forgotten: the work really ended at `endAt`. */
+  stopAt(endAt: number) {
+    append({ type: 'stopped', endAt });
   },
   dismissError() {
     publish({ error: null });
@@ -241,6 +311,7 @@ export const actions = {
   },
   async eraseAll() {
     await clearEvents();
+    clearLocal();
     events = [];
     publish();
   },

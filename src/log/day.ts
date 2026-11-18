@@ -227,6 +227,23 @@ export function planDay(state: LogState, day: DayKey, fallbackStart: number): Pl
   return layoutPlan(entries, startMin ?? fallbackStart);
 }
 
+/**
+ * Tasks left unfinished on the last day that had a plan, up to a week back,
+ * that are not on today yet. Repeating tasks come back by themselves.
+ */
+export function carryOver(state: LogState, today: DayKey): { from: DayKey; tasks: Task[] } | null {
+  for (let i = 1; i <= 7; i++) {
+    const from = addDays(today, -i);
+    if (!state.plans.has(from)) continue;
+    const onToday = new Set(resolveDay(state, today).entries.map((e) => e.task.id));
+    const tasks = resolveDay(state, from)
+      .entries.filter((e) => e.listed && !e.done && !isRepeating(state, e.task.id) && !onToday.has(e.task.id))
+      .map((e) => e.task);
+    return tasks.length ? { from, tasks } : null;
+  }
+  return null;
+}
+
 export type DayStats = {
   trackedMs: number;
   interruptedMs: number;

@@ -4,6 +4,7 @@ import { projectProgress } from '../log/project';
 import { LEN_STEP, MAX_LEN, MIN_LEN, type DayKey, type LogState, type Task } from '../log/types';
 import { actions } from '../store/store';
 import { daysText, dayWords, dur, hhmm, parseHhmm, span } from './format';
+import { CarryOver } from './CarryOver';
 import { LengthSelect } from './LengthSelect';
 import { Projects } from './Projects';
 import { RepeatDialog } from './RepeatDialog';
@@ -57,6 +58,8 @@ export function PlanPanel({ state, day, today, blocks, startMin, perTask, now, o
             Done
           </button>
         </div>
+
+        {isToday && <CarryOver state={state} today={today} />}
 
         <label className="plan-start">
           Start at

@@ -269,6 +269,97 @@ ul {
   color: var(--bad);
 }
 
+.notice-ask {
+  display: grid;
+  justify-content: stretch;
+  gap: 8px;
+  border-color: var(--now);
+}
+
+.notice-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.notice-row label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.notice-row .btn,
+.notice-row input {
+  min-height: 36px;
+}
+
+/* Sits just above the dock for a few seconds after a change that can be taken back. */
+.toast {
+  position: fixed;
+  z-index: 60;
+  left: 50%;
+  bottom: calc(var(--dock-h) + 12px);
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: max-content;
+  max-width: calc(100% - 32px);
+  padding: 6px 6px 6px 16px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.toast span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.toast .btn {
+  min-height: 32px;
+  border-color: transparent;
+  color: var(--ink);
+}
+
+.carry {
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  border: 1.5px solid var(--ink);
+  border-radius: 12px;
+}
+
+.carry-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.carry-head strong {
+  flex: 1 1 100%;
+  font-weight: 700;
+}
+
+.carry li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 6px;
+}
+
+.carry .btn {
+  min-height: 34px;
+  padding: 0 10px;
+  font-size: 0.82rem;
+}
+
 .day {
   flex: 1;
   min-height: 0;

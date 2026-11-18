@@ -186,6 +186,11 @@ try {
   await page.locator('.slot', { hasText: 'Thesis' }).click();
   await page.clock.fastForward('01:01:00');
   await expect(dock, '1h 01m of 1h');
+  // The clock jumped an hour with a timer running: the app asks, and never stops it itself
+  await expect(page.locator('.notice-ask'), 'Still on Thesis?');
+  await page.getByRole('button', { name: 'Still working' }).click();
+  assert.equal(await page.locator('.notice-ask').count(), 0);
+  await expect(dock, 'Thesis');
   await openPlan();
   await expect(project, '1h 01m of 1h');
   await expect(project, 'The hours are used up');
@@ -196,14 +201,46 @@ try {
   await project.getByRole('button', { name: 'Add hours' }).click();
   await expect(project, '1h 01m of 3h');
   await closePlan();
-  await page.getByRole('button', { name: 'Pause', exact: true }).click();
+
+  // Forgotten for three hours: say when it really ended
+  await page.clock.fastForward('03:00:00');
+  await expect(page.locator('.notice-ask'), 'Still on Thesis?');
+  if (SHOTS) await new Promise((r) => setTimeout(r, 500));
+  await shot('10-forgotten');
+  await page.getByLabel('It ended at').fill('11:30');
+  await page.getByRole('button', { name: 'Set end' }).click();
+  await expect(dock, 'Nothing running');
+  assert.equal(await page.locator('.notice-ask').count(), 0);
+  await openPlan();
+  await expect(project, '1h 29m of 3h');
+
+  // Delete, then take it back
+  await page.getByRole('button', { name: 'Delete Call the bank' }).click();
+  await expect(page.locator('.toast'), 'Deleted Call the bank');
+  await shot('11-undo');
+  await page.getByRole('button', { name: 'Undo', exact: true }).click();
+  assert.equal(await page.getByRole('button', { name: 'Delete Call the bank' }).count(), 1);
+  assert.equal(await page.locator('.toast').count(), 0);
+  await closePlan();
+
+  // The next morning: yesterday's unfinished tasks are offered
+  await page.clock.fastForward('19:00:00');
+  await expect(page.locator('h1'), 'Thursday');
+  assert.equal(await page.locator('.slot').count(), 1);
+  await openPlan();
+  await expect(page.locator('.carry'), 'From Wednesday: 3 unfinished');
+  await shot('12-carry');
+  await page.getByRole('button', { name: 'Add all' }).click();
+  assert.equal(await page.locator('.carry').count(), 0);
+  await closePlan();
+  assert.equal(await page.locator('.slot').count(), 4);
 
   if (SHOTS) {
     await page.emulateMedia({ colorScheme: 'dark' });
-    await shot('10-dark');
+    await shot('13-dark');
     await page.setViewportSize({ width: 1280, height: 820 });
     await page.emulateMedia({ colorScheme: 'light' });
-    await shot('11-desktop');
+    await shot('14-desktop');
   }
   assert.deepEqual(errors, []);
   console.log('smoke test passed');

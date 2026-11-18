@@ -7,6 +7,8 @@ import { DataDialog } from './DataDialog';
 import { Dock } from './Dock';
 import { dayWords, dur } from './format';
 import { PlanPanel } from './PlanPanel';
+import { StalePrompt } from './StalePrompt';
+import { useStale } from './useStale';
 import { Timeline } from './Timeline';
 
 function useNow(): number {
@@ -24,7 +26,7 @@ function useNow(): number {
 }
 
 export function App() {
-  const { ready, state, error, count } = useLog();
+  const { ready, state, error, count, undo } = useLog();
   const now = useNow();
   const updateWaiting = useUpdateWaiting();
   const [planOpen, setPlanOpen] = useState(false);
@@ -43,6 +45,18 @@ export function App() {
   // The dock always talks about now, whatever day is on screen.
   const todayStats = isToday ? stats : dayStats(daySegments(state, today, now));
   const { weekday, date } = dayWords(day);
+
+  // Is the running timer one that was forgotten?
+  const runningId = state.open?.kind === 'task' ? state.open.taskId : undefined;
+  const running = runningId ? state.tasks.get(runningId) : undefined;
+  const todayBlocks = isToday ? blocks : planDay(state, today, defaultStart(today, now));
+  const { stale, stillWorking } = useStale(
+    state,
+    now,
+    ready,
+    running && (todayBlocks.find((b) => b.task.id === running.id)?.lengthMin ?? running.estimateMin),
+    running && (todayStats.perTask.get(running.id) ?? 0),
+  );
   const go = (d: DayKey) => setViewDay(d === today ? null : d);
 
   if (!ready) return <div className="boot" aria-busy="true" />;
@@ -101,8 +115,17 @@ export function App() {
         </dl>
       </header>
 
-      {(error || updateWaiting) && (
+      {(error || updateWaiting || stale) && (
         <div className="notices">
+          {stale && (
+            <StalePrompt
+              key={stale.segStart}
+              stale={stale}
+              title={running?.title ?? 'the interruption'}
+              now={now}
+              onStillWorking={stillWorking}
+            />
+          )}
           {error && (
             <p className="notice notice-bad" role="alert">
               {error}
@@ -147,6 +170,15 @@ export function App() {
           onClose={() => setPlanOpen(false)}
         />
       </main>
+
+      {undo && (
+        <div className="toast" role="status">
+          <span>{undo}</span>
+          <button className="btn" onClick={actions.undo}>
+            Undo
+          </button>
+        </div>
+      )}
 
       <Dock state={state} now={now} perTask={todayStats.perTask} />
 
