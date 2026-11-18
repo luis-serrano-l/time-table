@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { activeRule, weekday } from '../log/day';
 import type { DayKey, LogState, Task } from '../log/types';
 import { actions } from '../store/store';
-import { dayShort, hhmm, parseHhmm, WEEK } from './format';
+import { DayChips } from './DayChips';
+import { hhmm, parseHhmm } from './format';
 import { LengthSelect } from './LengthSelect';
 
 type Props = {
@@ -29,8 +30,6 @@ export function RepeatDialog({ state, task, from, startMin, lengthMin, onClose }
     ref.current?.showModal();
   }, []);
 
-  const flip = (d: number) => setDays((v) => (v.includes(d) ? v.filter((x) => x !== d) : [...v, d]));
-
   function save() {
     if (atMin === null || !days.length) return;
     actions.setRule(task.id, { days, atMin, lengthMin: length }, from);
@@ -40,21 +39,7 @@ export function RepeatDialog({ state, task, from, startMin, lengthMin, onClose }
   return (
     <dialog ref={ref} className="dialog" onClose={onClose} aria-label={`Repeat ${task.title}`}>
       <h2>Repeat {task.title}</h2>
-      <div className="days" role="group" aria-label="Days">
-        {WEEK.map((d) => (
-          <button key={d} type="button" className="day-chip" aria-pressed={days.includes(d)} onClick={() => flip(d)}>
-            {dayShort(d)}
-          </button>
-        ))}
-      </div>
-      <div className="dialog-row">
-        <button type="button" className="btn" onClick={() => setDays([...WEEK])}>
-          Every day
-        </button>
-        <button type="button" className="btn" onClick={() => setDays([1, 2, 3, 4, 5])}>
-          Weekdays
-        </button>
-      </div>
+      <DayChips days={days} onChange={setDays} />
       <div className="dialog-row fields">
         <label>
           At

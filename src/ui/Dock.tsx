@@ -1,7 +1,9 @@
 import { useState, type FormEvent } from 'react';
 import type { LogState } from '../log/types';
 import { actions } from '../store/store';
-import { clock, dur } from './format';
+import { dayKey } from '../log/day';
+import { projectProgress } from '../log/project';
+import { clock, dur, span } from './format';
 import { LengthSelect } from './LengthSelect';
 
 type Props = { state: LogState; now: number; perTask: Map<string, number> };
@@ -15,6 +17,7 @@ export function Dock({ state, now, perTask }: Props) {
   const task = open?.taskId ? state.tasks.get(open.taskId) : undefined;
   const parked = state.parked ? state.tasks.get(state.parked) : undefined;
   const elapsed = open ? now - open.start : 0;
+  const project = task ? projectProgress(state, task.id, now, dayKey(now)) : null;
 
   function submit(e: FormEvent) {
     e.preventDefault();
@@ -56,7 +59,10 @@ export function Dock({ state, now, perTask }: Props) {
             <span className={`dot hue-${task.hue}`} />
             <div className="dock-text">
               <strong>{task.title}</strong>
-              <small>{dur(perTask.get(task.id) ?? 0)} today</small>
+              <small className={project?.status === 'spent' ? 'is-spent' : ''}>
+                {dur(perTask.get(task.id) ?? 0)} today
+                {project && `, ${span(project.spentMs)} of ${span(project.budgetMs)}`}
+              </small>
             </div>
             <time>{clock(elapsed)}</time>
           </>

@@ -1,9 +1,11 @@
 import { useState, type FormEvent } from 'react';
 import { activeRule, type PlanBlock } from '../log/day';
+import { projectProgress } from '../log/project';
 import { LEN_STEP, MAX_LEN, MIN_LEN, type DayKey, type LogState, type Task } from '../log/types';
 import { actions } from '../store/store';
-import { daysText, dayWords, dur, hhmm, parseHhmm } from './format';
+import { daysText, dayWords, dur, hhmm, parseHhmm, span } from './format';
 import { LengthSelect } from './LengthSelect';
+import { Projects } from './Projects';
 import { RepeatDialog } from './RepeatDialog';
 
 type Props = {
@@ -13,12 +15,13 @@ type Props = {
   blocks: PlanBlock[];
   startMin: number;
   perTask: Map<string, number>;
+  now: number;
   open: boolean;
   onClose: () => void;
 };
 
 /** The plan as a list: a sheet on a phone, a side column on a wide screen. */
-export function PlanPanel({ state, day, today, blocks, startMin, perTask, open, onClose }: Props) {
+export function PlanPanel({ state, day, today, blocks, startMin, perTask, now, open, onClose }: Props) {
   const [title, setTitle] = useState('');
   const [length, setLength] = useState(30);
   const [repeat, setRepeat] = useState<{ task: Task; startMin: number; lengthMin: number } | null>(null);
@@ -32,8 +35,9 @@ export function PlanPanel({ state, day, today, blocks, startMin, perTask, open, 
   const endMin = blocks.length ? Math.max(...blocks.map((b) => b.endMin)) : null;
 
   const tasks = [...state.tasks.values()].filter((t) => !t.removed && !t.done);
-  const repeating = tasks.filter((t) => activeRule(state, t.id));
-  const later = tasks.filter((t) => !planned.has(t.id) && !activeRule(state, t.id));
+  const isProject = (t: Task) => state.projects.has(t.id);
+  const repeating = tasks.filter((t) => activeRule(state, t.id) && !isProject(t));
+  const later = tasks.filter((t) => !planned.has(t.id) && !activeRule(state, t.id) && !isProject(t));
 
   function add(e: FormEvent) {
     e.preventDefault();
@@ -86,6 +90,7 @@ export function PlanPanel({ state, day, today, blocks, startMin, perTask, open, 
             const t = b.task;
             const i = flow.indexOf(b);
             const rule = activeRule(state, t.id);
+            const project = projectProgress(state, t.id, now, today);
             const clash = b.clash && blocks.find((o) => o !== b && o.pinned && o.startMin < b.endMin && b.startMin < o.endMin);
             return (
               <li key={t.id} className={b.done ? 'is-done' : ''}>
@@ -123,6 +128,12 @@ export function PlanPanel({ state, day, today, blocks, startMin, perTask, open, 
                     )}
                     {isToday && <>, {dur(perTask.get(t.id) ?? 0)} logged</>}
                     {rule && <>, repeats {daysText(rule.days).replace(/^(Every|Weekdays)/, (w) => w.toLowerCase())}</>}
+                    {project && (
+                      <>
+                        , {span(project.spentMs)} of {span(project.budgetMs)}
+                        {project.status === 'spent' && <strong className="warn"> Hours used up</strong>}
+                      </>
+                    )}
                     {clash && <strong className="warn"> Overlaps {clash.task.title}</strong>}
                     {b.offDay && <strong className="warn"> Starts after midnight</strong>}
                   </small>
@@ -174,6 +185,7 @@ export function PlanPanel({ state, day, today, blocks, startMin, perTask, open, 
                         ◆
                       </button>
                       <button
+                        hidden={!!project}
                         aria-label={`Repeat ${t.title}`}
                         aria-pressed={!!rule}
                         title="Repeat"
@@ -249,6 +261,8 @@ export function PlanPanel({ state, day, today, blocks, startMin, perTask, open, 
             </ul>
           </>
         )}
+
+        {!past && <Projects state={state} day={day} today={today} name={name} now={now} planned={planned} />}
 
         {!past && later.length > 0 && (
           <>

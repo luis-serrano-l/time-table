@@ -68,6 +68,7 @@ const isRunning = (taskId: string) => {
   return open?.kind === 'task' && open.taskId === taskId;
 };
 
+export type ProjectInput = { title: string; budgetMin: number; sessionMin: number; days: number[]; atMin?: number };
 export type RuleInput = { days: number[]; atMin?: number; lengthMin: number };
 
 export const actions = {
@@ -159,6 +160,51 @@ export const actions = {
     const rule = activeRule(snap.state, taskId);
     if (!rule) return;
     append({ type: 'rule.set', taskId, from: addDays(today(), 1), days: [], lengthMin: rule.lengthMin });
+  },
+  addProject(p: ProjectInput, from: DayKey) {
+    const taskId = uid();
+    const items: New[] = [
+      { type: 'task.added', taskId, title: p.title, estimateMin: p.sessionMin },
+      { type: 'project.set', taskId, budgetMin: p.budgetMin },
+    ];
+    if (p.days.length) {
+      items.push({ type: 'rule.set', taskId, from, days: p.days, atMin: p.atMin, lengthMin: p.sessionMin });
+    }
+    append(...items);
+  },
+  editProject(taskId: string, p: ProjectInput, from: DayKey) {
+    const task = snap.state.tasks.get(taskId);
+    const rule = activeRule(snap.state, taskId);
+    if (!task) return;
+    const items: New[] = [];
+    if (p.title !== task.title) items.push({ type: 'task.edited', taskId, title: p.title });
+    if (p.sessionMin !== task.estimateMin) items.push({ type: 'task.edited', taskId, estimateMin: p.sessionMin });
+    if (p.budgetMin !== snap.state.projects.get(taskId)?.budgetMin) {
+      items.push({ type: 'project.set', taskId, budgetMin: p.budgetMin });
+    }
+    const same =
+      rule &&
+      rule.lengthMin === p.sessionMin &&
+      rule.atMin === p.atMin &&
+      [...rule.days].sort().join() === [...p.days].sort().join();
+    if (p.days.length && !same) {
+      items.push({ type: 'rule.set', taskId, from, days: p.days, atMin: p.atMin, lengthMin: p.sessionMin });
+    } else if (!p.days.length && rule) {
+      items.push({ type: 'rule.set', taskId, from: addDays(today(), 1), days: [], lengthMin: p.sessionMin });
+    }
+    if (items.length) append(...items);
+  },
+  /** More hours for a project that needs them. */
+  setBudget(taskId: string, budgetMin: number) {
+    append({ type: 'project.set', taskId, budgetMin });
+  },
+  /** The project is finished: no more sessions from tomorrow on. */
+  finishProject(taskId: string) {
+    const rule = activeRule(snap.state, taskId);
+    const items: New[] = [{ type: 'task.done', taskId, done: true }];
+    if (rule) items.push({ type: 'rule.set', taskId, from: addDays(today(), 1), days: [], lengthMin: rule.lengthMin });
+    if (isRunning(taskId)) items.unshift({ type: 'stopped' });
+    append(...items);
   },
   setDone(day: DayKey, taskId: string, done: boolean) {
     const mark: New = isRepeating(snap.state, taskId)

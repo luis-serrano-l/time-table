@@ -173,12 +173,37 @@ try {
   await shot('8-next-week');
   await page.getByRole('button', { name: 'Back to today' }).click();
 
+  // A project: only logged time uses up its hours; then finish it or add time
+  await openPlan();
+  await page.getByRole('button', { name: 'New project' }).click();
+  await page.getByLabel('Name', { exact: true }).fill('Thesis');
+  await page.getByLabel('Total hours').fill('1');
+  await page.getByRole('button', { name: 'Create project' }).click();
+  const project = page.locator('.project-list li', { hasText: 'Thesis' });
+  await expect(project, '0m of 1h');
+  await page.getByRole('button', { name: 'Put Thesis on today' }).click();
+  await closePlan();
+  await page.locator('.slot', { hasText: 'Thesis' }).click();
+  await page.clock.fastForward('01:01:00');
+  await expect(dock, '1h 01m of 1h');
+  await openPlan();
+  await expect(project, '1h 01m of 1h');
+  await expect(project, 'The hours are used up');
+  await project.scrollIntoViewIfNeeded();
+  await shot('9-project');
+  await project.getByRole('button', { name: 'Add time' }).click();
+  await project.getByLabel('Hours to add').fill('2');
+  await project.getByRole('button', { name: 'Add hours' }).click();
+  await expect(project, '1h 01m of 3h');
+  await closePlan();
+  await page.getByRole('button', { name: 'Pause', exact: true }).click();
+
   if (SHOTS) {
     await page.emulateMedia({ colorScheme: 'dark' });
-    await shot('9-dark');
+    await shot('10-dark');
     await page.setViewportSize({ width: 1280, height: 820 });
     await page.emulateMedia({ colorScheme: 'light' });
-    await shot('10-desktop');
+    await shot('11-desktop');
   }
   assert.deepEqual(errors, []);
   console.log('smoke test passed');

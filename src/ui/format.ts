@@ -5,6 +5,12 @@ export function dur(ms: number): string {
   return h ? `${h}h ${String(m % 60).padStart(2, '0')}m` : `${m}m`;
 }
 
+/** Like dur, without the empty minutes on a whole hour: "40h", "12h 30m" */
+export function span(ms: number): string {
+  const m = Math.max(0, Math.round(ms / 60000));
+  return m >= 60 && m % 60 === 0 ? `${m / 60}h` : dur(ms);
+}
+
 /** Running clock: "12:05" or "1:12:05" */
 export function clock(ms: number): string {
   const s = Math.max(0, Math.floor(ms / 1000));

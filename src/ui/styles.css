@@ -841,6 +841,152 @@ input.pin-time {
   min-width: 0;
 }
 
+.plan-sub {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 22px 0 8px;
+}
+
+.plan .plan-sub h3 {
+  margin: 0;
+}
+
+.plan-sub .btn,
+.project-list .btn {
+  min-height: 34px;
+  padding: 0 10px;
+  font-size: 0.82rem;
+}
+
+.project-list li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 6px 10px;
+  padding: 10px 0;
+  border-top: 1px solid var(--rule);
+}
+
+.project-list .dot {
+  margin-top: 5px;
+}
+
+.project-text {
+  display: grid;
+  min-width: 0;
+}
+
+.project-text strong {
+  font-weight: 650;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-text small {
+  color: var(--ink-2);
+  font-size: 0.78rem;
+}
+
+.project-text small:first-of-type {
+  color: var(--ink);
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.project-tools {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+/* Hours used, as a filled length of the project's colour. */
+.bar {
+  grid-column: 2 / -1;
+  height: 8px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--hue) 18%, var(--paper));
+  overflow: hidden;
+}
+
+.bar span {
+  display: block;
+  height: 100%;
+  background: var(--hue);
+}
+
+.is-spent .bar span {
+  background: var(--now);
+}
+
+.project-spent {
+  grid-column: 2 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.86rem;
+  font-weight: 650;
+  color: var(--now);
+}
+
+.project-spent span {
+  flex: 1 1 100%;
+}
+
+.project-spent.is-quiet .btn {
+  border-color: transparent;
+  background: none;
+  padding: 0 4px;
+  color: var(--ink-2);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+input.hours {
+  width: 6.5ch;
+  box-sizing: content-box;
+}
+
+.dock-text small.is-spent {
+  color: var(--now);
+  font-weight: 650;
+}
+
+.dialog h3 {
+  margin: 18px 0 0;
+  font-size: 0.95rem;
+  font-weight: 650;
+  color: var(--ink-2);
+}
+
+.fields.stack {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.fields.stack label {
+  justify-content: space-between;
+}
+
+.fields.stack input:not([type='number']) {
+  flex: 1;
+  min-width: 0;
+  max-width: 62%;
+}
+
+.fields input[type='checkbox'] {
+  min-height: 0;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  accent-color: var(--ink);
+}
+
 .later-list li {
   display: flex;
   align-items: center;

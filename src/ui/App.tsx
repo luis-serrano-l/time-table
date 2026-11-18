@@ -142,6 +142,7 @@ export function App() {
           blocks={blocks}
           startMin={startMin}
           perTask={stats.perTask}
+          now={now}
           open={planOpen}
           onClose={() => setPlanOpen(false)}
         />
