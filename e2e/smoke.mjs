@@ -1,0 +1,137 @@
+// End-to-end check against the production build, in the installed Chrome.
+// Run: npm run build && npm run e2e      (screenshots: e2e/shots, if SHOTS=1)
+import { spawn } from 'node:child_process';
+import { mkdirSync, readFileSync } from 'node:fs';
+import assert from 'node:assert/strict';
+import { chromium } from 'playwright-core';
+
+const PORT = 4179;
+const URL = `http://localhost:${PORT}/`;
+const SHOTS = process.env.SHOTS === '1';
+if (SHOTS) mkdirSync('e2e/shots', { recursive: true });
+
+const server = spawn('node_modules/.bin/vite', ['preview', '--port', String(PORT), '--strictPort'], { stdio: 'pipe' });
+await new Promise((ok, fail) => {
+  server.stdout.on('data', (d) => String(d).includes('localhost') && ok());
+  server.on('exit', () => fail(new Error('preview server did not start')));
+});
+
+const browser = await chromium.launch({ channel: 'chrome' });
+try {
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 800 }, colorScheme: 'light' });
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(String(e)));
+  await page.clock.install({ time: new Date(2026, 10, 18, 9, 2) });
+  await page.goto(URL);
+  const shot = async (name) => SHOTS && page.screenshot({ path: `e2e/shots/${name}.png` });
+  const dock = page.locator('.dock');
+
+  // Plan the day
+  await page.getByRole('button', { name: 'Plan the day' }).click();
+  for (const t of ['Write the report', 'Review pull requests', 'Reply to email']) {
+    await page.getByLabel('New task for today').fill(t);
+    await page.getByRole('button', { name: 'Add', exact: true }).click();
+  }
+  await page.getByRole('button', { name: 'Lengthen Write the report' }).click();
+  await page.getByRole('button', { name: 'Move Reply to email earlier' }).click();
+  await shot('1-plan');
+  await page.getByRole('button', { name: 'Done', exact: true }).click();
+  assert.equal(await page.locator('.slot').count(), 3);
+  assert.deepEqual(await page.locator('.slot-title').allTextContents(), [
+    'Write the report',
+    'Reply to email',
+    'Review pull requests',
+  ]);
+
+  // One tap starts, another tap switches
+  await page.locator('.slot', { hasText: 'Write the report' }).click();
+  await page.clock.fastForward('32:00');
+  await expect(dock, 'Write the report');
+  await expect(dock, '32:00');
+  await page.locator('.slot', { hasText: 'Reply to email' }).click();
+  await page.clock.fastForward('10:00');
+
+  // Interruption parks the task and gives it back
+  await page.getByRole('button', { name: 'Interruption', exact: true }).click();
+  await page.clock.fastForward('04:00');
+  await expect(dock, 'Reply to email is waiting');
+  await shot('2-interruption');
+  await page.getByRole('button', { name: 'Back to work' }).click();
+  await page.clock.fastForward('06:00');
+  await expect(dock, 'Reply to email');
+
+  // Something unplanned
+  await page.getByRole('button', { name: 'Start something unplanned' }).click();
+  await page.getByLabel('Name of the task to start now').fill('Call the bank');
+  await page.getByRole('button', { name: 'Start', exact: true }).click();
+  await page.clock.fastForward('05:00');
+  await expect(dock, 'Call the bank');
+  await expect(page.locator('.tally'), 'Switches2');
+  await expect(page.locator('.tally'), 'Deep stretches1');
+  await expect(page.locator('.tally'), 'Logged53m');
+  await shot('3-day');
+
+  // The timer survives a reload
+  await page.reload();
+  await expect(dock, 'Call the bank');
+  await expect(dock, '5:0');
+
+  // Pause, export, erase, import
+  await page.getByRole('button', { name: 'Pause', exact: true }).click();
+  await expect(dock, 'Nothing running');
+  await page.getByRole('button', { name: 'Data', exact: true }).click();
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'Export backup' }).click(),
+  ]);
+  const file = await download.path();
+  const backup = JSON.parse(readFileSync(file, 'utf8'));
+  assert.equal(backup.format, 'time-table-log');
+  assert.ok(backup.events.length > 10);
+  await shot('4-data');
+  await page.getByRole('button', { name: 'Erase everything' }).click();
+  await page.getByRole('button', { name: 'Erase everything' }).click();
+  await expect(page.locator('.dialog'), 'Everything was erased');
+  await page.locator('input[type=file]').setInputFiles(file);
+  await expect(page.locator('.dialog'), `Imported ${backup.events.length} new entries`);
+  await page.locator('input[type=file]').setInputFiles(file);
+  await expect(page.locator('.dialog'), 'Nothing new in that backup');
+  await page.getByRole('button', { name: 'Close' }).click();
+  assert.equal(await page.locator('.slot').count(), 3);
+  await expect(page.locator('.tally'), 'Logged53m');
+
+  // Installable and offline: manifest served, service worker takes control
+  const manifest = await (await page.request.get(URL + 'manifest.webmanifest')).json();
+  assert.equal(manifest.display, 'standalone');
+  await page.evaluate(() => navigator.serviceWorker.ready);
+  await ctx.setOffline(true);
+  await page.reload();
+  await expect(page.locator('.tally'), 'Logged53m');
+  await ctx.setOffline(false);
+
+  if (SHOTS) {
+    await page.emulateMedia({ colorScheme: 'dark' });
+    await shot('5-dark');
+    await page.setViewportSize({ width: 1280, height: 820 });
+    await page.emulateMedia({ colorScheme: 'light' });
+    await shot('6-desktop');
+  }
+  assert.deepEqual(errors, []);
+  console.log('smoke test passed');
+} finally {
+  await browser.close();
+  server.kill();
+}
+
+async function expect(locator, text) {
+  const wanted = text.replace(/\s+/g, '');
+  const deadline = Date.now() + 5000;
+  let got = '';
+  while (Date.now() < deadline) {
+    got = ((await locator.first().textContent()) ?? '').replace(/\s+/g, '');
+    if (got.includes(wanted)) return;
+    await new Promise((r) => setTimeout(r, 50));
+  }
+  assert.fail(`expected "${text}" in "${got}"`);
+}

@@ -1,0 +1,6 @@
+node_modules
+dist
+dev-dist
+.code-review-graph
+.claude/settings.local.json
+e2e/shots
