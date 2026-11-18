@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dayKey, dayRange, daySegments, dayStats, layoutPlan } from './day';
+import { dayKey, dayRange, daySegments, dayStats, planDay } from './day';
 import { reduce } from './reduce';
 import type { LogEvent } from './types';
 
@@ -94,7 +94,7 @@ describe('day', () => {
       ev({ type: 'task.removed', at: T0, taskId: 'b' }),
       ev({ type: 'plan.set', at: T0, day: key, taskIds: ['a', 'b', 'c'], startMin: 540 }),
     ]);
-    const blocks = layoutPlan(s, s.plans.get(key));
+    const blocks = planDay(s, key, 0);
     expect(blocks.map((b) => [b.task.id, b.startMin, b.endMin])).toEqual([
       ['a', 540, 570],
       ['c', 570, 585],

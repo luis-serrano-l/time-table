@@ -19,9 +19,9 @@ type Props = {
 export function PlanPanel({ state, plan, blocks, perTask, open, onClose }: Props) {
   const [title, setTitle] = useState('');
   const [length, setLength] = useState(30);
-  const planned = new Set(plan?.taskIds ?? []);
+  const planned = new Set(blocks.map((b) => b.task.id));
   const later = [...state.tasks.values()].filter((t) => !t.removed && !t.done && !planned.has(t.id));
-  const total = blocks.reduce((sum, b) => sum + b.task.estimateMin, 0);
+  const total = blocks.reduce((sum, b) => sum + b.lengthMin, 0);
   const endMin = blocks.length ? blocks[blocks.length - 1].endMin : null;
 
   function add(e: FormEvent) {

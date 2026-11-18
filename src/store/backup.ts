@@ -1,7 +1,7 @@
 import type { LogEvent } from '../log/types';
 
 export const FORMAT = 'time-table-log';
-export const VERSION = 1;
+export const VERSION = 2;
 
 const TYPES = new Set([
   'task.added',
@@ -9,6 +9,10 @@ const TYPES = new Set([
   'task.done',
   'task.removed',
   'plan.set',
+  'entry.set',
+  'rule.set',
+  'project.set',
+  'trimmed',
   'started',
   'stopped',
   'interruption.started',

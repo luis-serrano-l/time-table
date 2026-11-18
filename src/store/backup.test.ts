@@ -22,6 +22,25 @@ describe('backup', () => {
     ).toThrow('cannot read');
   });
 
+  it('accepts v1 and v2 files and still refuses a newer one', () => {
+    const file = (version: number) => JSON.stringify({ format: 'time-table-log', version, events: [a] });
+    expect(fromBackup(file(1))).toEqual([a]);
+    expect(fromBackup(file(2))).toEqual([a]);
+    expect(() => fromBackup(file(3))).toThrow('newer version');
+  });
+
+  it('round-trips the newer kinds of entry', () => {
+    const events: LogEvent[] = [
+      a,
+      { id: 'd', at: 4, type: 'entry.set', day: '2026-11-18', taskId: 't', lengthMin: 20, pinMin: null },
+      { id: 'e', at: 5, type: 'rule.set', taskId: 't', from: '2026-11-18', days: [1, 3], atMin: 600, lengthMin: 15 },
+      { id: 'f', at: 6, type: 'project.set', taskId: 't', budgetMin: 2400 },
+      { id: 'g', at: 7, type: 'trimmed', segStart: 2, endAt: 3 },
+      { id: 'h', at: 8, type: 'stopped', endAt: 7 },
+    ];
+    expect(fromBackup(toBackup(events, 0))).toEqual(events);
+  });
+
   it('merges by id, in time order, and is idempotent', () => {
     const merged = mergeLogs([c, a], [b, a]);
     expect(merged.map((e) => e.id)).toEqual(['a', 'b', 'c']);

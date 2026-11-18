@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { dayKey, daySegments, dayStats, layoutPlan } from '../log/day';
+import { dayKey, daySegments, dayStats, defaultStartMin, planDay } from '../log/day';
 import { applyUpdate, useUpdateWaiting } from '../pwa/register';
 import { actions, useLog } from '../store/store';
 import { DataDialog } from './DataDialog';
@@ -31,7 +31,7 @@ export function App() {
 
   const key = dayKey(now);
   const plan = state.plans.get(key);
-  const blocks = layoutPlan(state, plan);
+  const blocks = planDay(state, key, defaultStartMin(now));
   const segs = daySegments(state, key, now);
   const stats = dayStats(segs);
 

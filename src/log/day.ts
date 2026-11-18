@@ -1,4 +1,4 @@
-import type { DayKey, LogState, Plan, Segment, Task } from './types';
+import type { DayKey, LogState, RuleVersion, Segment, Task } from './types';
 
 export const DEEP_MIN = 25; // an unbroken stretch this long counts as deep work
 
@@ -62,20 +62,157 @@ export function daySegments(state: LogState, key: DayKey, now: number): DaySegme
   return out;
 }
 
-export type PlanBlock = { task: Task; startMin: number; endMin: number };
+/** 0 (Sunday) to 6, as Date.getDay() gives it. */
+export function weekday(key: DayKey): number {
+  const [y, m, d] = key.split('-').map(Number);
+  return new Date(y, m - 1, d).getDay();
+}
 
-/** Lay the planned tasks end to end from the plan's start time. */
-export function layoutPlan(state: LogState, plan: Plan | undefined): PlanBlock[] {
-  if (!plan) return [];
-  const blocks: PlanBlock[] = [];
-  let at = plan.startMin;
-  for (const id of plan.taskIds) {
+/** The day `n` days after (or before) `key`. */
+export function addDays(key: DayKey, n: number): DayKey {
+  const [y, m, d] = key.split('-').map(Number);
+  return dayKey(new Date(y, m - 1, d + n).getTime());
+}
+
+/** The repeat rule in force for a task on a day, if it had one by then. */
+export function ruleFor(state: LogState, taskId: string, day: DayKey): RuleVersion | undefined {
+  let found: RuleVersion | undefined;
+  for (const v of state.rules.get(taskId) ?? []) if (v.from <= day) found = v;
+  return found;
+}
+
+/** A project, or a task that has ever repeated: its length and "done" are per day. */
+export function isRepeating(state: LogState, taskId: string): boolean {
+  return state.projects.has(taskId) || state.rules.has(taskId);
+}
+
+/** One task on one day, before it is given a place on the clock. */
+export type DayEntry = {
+  task: Task;
+  lengthMin: number;
+  /** Fixed start, in minutes from midnight. Null: it flows after the task before it. */
+  pinMin: number | null;
+  done: boolean;
+  /** Here because its repeat rule says so. */
+  ruled: boolean;
+  /** Named in the day's own plan. */
+  listed: boolean;
+};
+
+export type ResolvedDay = { startMin: number | null; entries: DayEntry[] };
+
+/**
+ * What is on a day: the tasks its plan names, in that order, then the tasks
+ * whose repeat rule falls on that weekday. Nothing is written when a day is
+ * opened, so two devices never both add the same occurrence.
+ */
+export function resolveDay(state: LogState, day: DayKey): ResolvedDay {
+  const plan = state.plans.get(day);
+  const over = state.overrides.get(day);
+  const wd = weekday(day);
+  const entries: DayEntry[] = [];
+  const seen = new Set<string>();
+
+  const entry = (task: Task, listed: boolean): DayEntry => {
+    const o = over?.get(task.id);
+    const rule = ruleFor(state, task.id, day);
+    const ruled = !!rule && rule.days.includes(wd);
+    return {
+      task,
+      lengthMin: o?.lengthMin ?? rule?.lengthMin ?? task.estimateMin,
+      pinMin: o?.pinMin !== undefined ? o.pinMin : ruled ? (rule.atMin ?? null) : null,
+      done: task.done || task.doneOn.has(day),
+      ruled,
+      listed,
+    };
+  };
+
+  for (const id of plan?.taskIds ?? []) {
     const task = state.tasks.get(id);
-    if (!task || task.removed) continue;
-    blocks.push({ task, startMin: at, endMin: at + task.estimateMin });
-    at += task.estimateMin;
+    if (!task || task.removed || seen.has(id)) continue;
+    seen.add(id);
+    entries.push(entry(task, true));
   }
-  return blocks;
+
+  const derived: DayEntry[] = [];
+  for (const id of state.rules.keys()) {
+    const task = state.tasks.get(id);
+    if (!task || task.removed || seen.has(id) || over?.get(id)?.skip) continue;
+    const e = entry(task, false);
+    if (e.ruled) derived.push(e);
+  }
+  derived.sort(
+    (a, b) =>
+      (ruleFor(state, a.task.id, day)?.atMin ?? Infinity) - (ruleFor(state, b.task.id, day)?.atMin ?? Infinity) ||
+      a.task.createdAt - b.task.createdAt ||
+      (a.task.id < b.task.id ? -1 : 1),
+  );
+
+  return { startMin: plan?.startMin ?? null, entries: [...entries, ...derived] };
+}
+
+export type PlanBlock = {
+  task: Task;
+  startMin: number;
+  endMin: number;
+  lengthMin: number;
+  pinned: boolean;
+  done: boolean;
+  /** Pinned at a time that overlaps another pinned task. */
+  clash: boolean;
+  /** Clashing blocks are drawn side by side. */
+  lane: 0 | 1;
+  /** Starts after midnight, so it is not on this day at all. */
+  offDay: boolean;
+};
+
+/**
+ * Give every entry a time. Pinned tasks sit where they are pinned. The rest
+ * run end to end from `startMin` in list order, and one that would run into a
+ * pinned task starts after it instead. Blocks come back in clock order.
+ */
+export function layoutPlan(entries: readonly DayEntry[], startMin: number): PlanBlock[] {
+  const block = (e: DayEntry, at: number): PlanBlock => ({
+    task: e.task,
+    startMin: at,
+    endMin: at + e.lengthMin,
+    lengthMin: e.lengthMin,
+    pinned: e.pinMin !== null,
+    done: e.done,
+    clash: false,
+    lane: 0,
+    offDay: at >= 24 * 60,
+  });
+
+  const pinned = entries
+    .filter((e) => e.pinMin !== null)
+    .map((e) => block(e, e.pinMin!))
+    .sort((a, b) => a.startMin - b.startMin);
+  const overlap = (a: PlanBlock, b: PlanBlock) => a.startMin < b.endMin && b.startMin < a.endMin;
+  pinned.forEach((b, i) => {
+    const before = pinned.slice(0, i).filter((a) => overlap(a, b));
+    if (!before.length) return;
+    b.clash = true;
+    before.forEach((a) => (a.clash = true));
+    if (before.some((a) => a.lane === 0)) b.lane = 1;
+  });
+
+  const flowing: PlanBlock[] = [];
+  let at = startMin;
+  for (const e of entries) {
+    if (e.pinMin !== null) continue;
+    for (let hit; (hit = pinned.find((p) => p.startMin < at + e.lengthMin && p.endMin > at)); ) at = hit.endMin;
+    flowing.push(block(e, at));
+    at += e.lengthMin;
+  }
+
+  // Stable: at the same minute, a pinned task comes first.
+  return [...pinned, ...flowing].sort((a, b) => a.startMin - b.startMin);
+}
+
+export function planDay(state: LogState, day: DayKey, fallbackStart: number): PlanBlock[] {
+  const { startMin, entries } = resolveDay(state, day);
+  return layoutPlan(entries, startMin ?? fallbackStart);
 }
 
 export type DayStats = {

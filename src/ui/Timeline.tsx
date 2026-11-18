@@ -61,23 +61,23 @@ export function Timeline({ state, blocks, segs, perTask, now, onPlan }: Props) {
           {blocks.map((b) => {
             const done = perTask.get(b.task.id) ?? 0;
             const running = runningId === b.task.id;
-            const over = done > b.task.estimateMin * 60000;
+            const over = done > b.lengthMin * 60000;
             const height = y(b.endMin) - y(b.startMin) - 2;
             const compact = height < COMPACT_PX;
             return (
               <button
                 key={b.task.id}
-                className={`slot hue-${b.task.hue}${running ? ' is-running' : ''}${b.task.done ? ' is-done' : ''}${compact ? ' is-compact' : ''}`}
+                className={`slot hue-${b.task.hue}${running ? ' is-running' : ''}${b.done ? ' is-done' : ''}${compact ? ' is-compact' : ''}`}
                 style={{ top: y(b.startMin), height }}
                 onClick={() => actions.toggle(b.task.id)}
                 aria-pressed={running}
-                aria-label={`${b.task.title}, planned ${hhmm(b.startMin)} for ${dur(b.task.estimateMin * 60000)}, ${dur(done)} logged. ${running ? 'Pause' : 'Start'}`}
+                aria-label={`${b.task.title}, planned ${hhmm(b.startMin)} for ${dur(b.lengthMin * 60000)}, ${dur(done)} logged. ${running ? 'Pause' : 'Start'}`}
               >
                 <span className="slot-title">{b.task.title}</span>
                 <span className={`slot-meta${over ? ' is-over' : ''}`}>
                   {dur(done)}
                   {compact ? '/' : ' of '}
-                  {dur(b.task.estimateMin * 60000)}
+                  {dur(b.lengthMin * 60000)}
                 </span>
               </button>
             );
