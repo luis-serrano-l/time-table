@@ -26,3 +26,28 @@ export function parseHhmm(v: string): number | null {
   const min = Number(m[1]) * 60 + Number(m[2]);
   return min < 24 * 60 ? min : null;
 }
+
+const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+/** Weekdays in the order people read a week: Monday first. */
+export const WEEK = [1, 2, 3, 4, 5, 6, 0];
+export const dayShort = (d: number) => DAY_NAMES[d];
+
+/** "Every day", "Weekdays", "Mon, Wed" */
+export function daysText(days: readonly number[]): string {
+  const set = new Set(days);
+  if (set.size === 7) return 'Every day';
+  if (set.size === 5 && !set.has(0) && !set.has(6)) return 'Weekdays';
+  return WEEK.filter((d) => set.has(d))
+    .map(dayShort)
+    .join(', ');
+}
+
+/** A day key as words: { weekday: "Wednesday", date: "November 18" } */
+export function dayWords(key: string): { weekday: string; date: string } {
+  const [y, m, d] = key.split('-').map(Number);
+  const date = new Date(y, m - 1, d);
+  return {
+    weekday: date.toLocaleDateString('en', { weekday: 'long' }),
+    date: date.toLocaleDateString('en', { day: 'numeric', month: 'long' }),
+  };
+}

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { DEEP_MIN, type DaySegment, type PlanBlock } from '../log/day';
-import type { LogState } from '../log/types';
+import type { DayKey, LogState } from '../log/types';
 import { actions } from '../store/store';
 import { dur, hhmm } from './format';
 import { makeScale } from './scale';
@@ -14,17 +14,24 @@ type Props = {
   segs: DaySegment[];
   perTask: Map<string, number>;
   now: number;
+  /** The day on screen, and whether it is today or already over. */
+  day: DayKey;
+  label: string;
+  isToday: boolean;
+  past: boolean;
   onPlan: () => void;
 };
 
-export function Timeline({ state, blocks, segs, perTask, now, onPlan }: Props) {
+export function Timeline({ state, blocks: all, segs, perTask, now, day, label, isToday, past, onPlan }: Props) {
+  const blocks = all.filter((b) => !b.offDay);
   const d = new Date(now);
   const nowMin = d.getHours() * 60 + d.getMinutes() + d.getSeconds() / 60;
 
-  // Show from an hour before the earliest thing to an hour after the latest,
-  // and never less than a working stretch around now.
-  const starts = [nowMin - 60, ...blocks.map((b) => b.startMin), ...segs.map((s) => s.startMin)];
-  const ends = [nowMin + 240, ...blocks.map((b) => b.endMin), ...segs.map((s) => s.endMin)];
+  // Show from an hour before the earliest thing to an hour after the latest.
+  // Today, never less than a working stretch around now; another day, a working day.
+  const around = isToday ? [nowMin - 60, nowMin + 240] : blocks.length || segs.length ? [] : [8 * 60, 17.5 * 60];
+  const starts = [...around.slice(0, 1), ...blocks.map((b) => b.startMin - 30), ...segs.map((s) => s.startMin)];
+  const ends = [...around.slice(1), ...blocks.map((b) => b.endMin), ...segs.map((s) => s.endMin)];
   const fromH = Math.max(0, Math.floor(Math.min(...starts) / 60));
   const toH = Math.min(24, Math.ceil((Math.max(...ends) + 30) / 60));
   // Hours holding very short blocks are drawn taller, so nothing overlaps.
@@ -36,15 +43,16 @@ export function Timeline({ state, blocks, segs, perTask, now, onPlan }: Props) {
   const nowRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const box = scroller.current;
-    const line = nowRef.current;
-    if (box && line) box.scrollTop = line.offsetTop - box.clientHeight / 3;
-  }, []);
+    if (!box) return;
+    box.scrollTop = nowRef.current ? nowRef.current.offsetTop - box.clientHeight / 3 : 0;
+  }, [day]);
 
-  const runningId = state.open?.kind === 'task' ? state.open.taskId : undefined;
+  // Tapping starts a timer now, so it is only offered on today.
+  const runningId = isToday && state.open?.kind === 'task' ? state.open.taskId : undefined;
   const empty = blocks.length === 0 && segs.length === 0;
 
   return (
-    <section ref={scroller} className="timeline" aria-label="Today">
+    <section ref={scroller} className="timeline" aria-label={label}>
       <div className="tl-head" aria-hidden="true">
         <span />
         <span>Plan</span>
@@ -62,24 +70,42 @@ export function Timeline({ state, blocks, segs, perTask, now, onPlan }: Props) {
             const done = perTask.get(b.task.id) ?? 0;
             const running = runningId === b.task.id;
             const over = done > b.lengthMin * 60000;
+            const cls = `slot hue-${b.task.hue}${running ? ' is-running' : ''}${b.done ? ' is-done' : ''}${b.pinned ? ' is-pinned' : ''}${b.clash ? ` is-clash lane-${b.lane}` : ''}`;
+            const what = `${b.task.title}, planned ${hhmm(b.startMin)} for ${dur(b.lengthMin * 60000)}`;
             const height = y(b.endMin) - y(b.startMin) - 2;
             const compact = height < COMPACT_PX;
-            return (
-              <button
-                key={b.task.id}
-                className={`slot hue-${b.task.hue}${running ? ' is-running' : ''}${b.done ? ' is-done' : ''}${compact ? ' is-compact' : ''}`}
-                style={{ top: y(b.startMin), height }}
-                onClick={() => actions.toggle(b.task.id)}
-                aria-pressed={running}
-                aria-label={`${b.task.title}, planned ${hhmm(b.startMin)} for ${dur(b.lengthMin * 60000)}, ${dur(done)} logged. ${running ? 'Pause' : 'Start'}`}
-              >
+            const style = { top: y(b.startMin), height };
+            const inner = (
+              <>
                 <span className="slot-title">{b.task.title}</span>
                 <span className={`slot-meta${over ? ' is-over' : ''}`}>
-                  {dur(done)}
-                  {compact ? '/' : ' of '}
-                  {dur(b.lengthMin * 60000)}
+                  {isToday ? (
+                    <>
+                      {dur(done)}
+                      {compact ? '/' : ' of '}
+                      {dur(b.lengthMin * 60000)}
+                    </>
+                  ) : (
+                    dur(b.lengthMin * 60000)
+                  )}
                 </span>
+              </>
+            );
+            return isToday ? (
+              <button
+                key={b.task.id}
+                className={`${cls}${compact ? ' is-compact' : ''}`}
+                style={style}
+                onClick={() => actions.toggle(b.task.id)}
+                aria-pressed={running}
+                aria-label={`${what}, ${dur(done)} logged. ${running ? 'Pause' : 'Start'}`}
+              >
+                {inner}
               </button>
+            ) : (
+              <div key={b.task.id} className={`${cls}${compact ? ' is-compact' : ''}`} style={style} aria-label={what}>
+                {inner}
+              </div>
             );
           })}
         </div>
@@ -94,7 +120,7 @@ export function Timeline({ state, blocks, segs, perTask, now, onPlan }: Props) {
             const style = { top: y(s.startMin), height: h };
             const text = h >= 20 && <span>{label}</span>;
             const title = `${label}, ${hhmm(s.startMin)} to ${s.running ? 'now' : hhmm(s.endMin)}, ${dur(s.end - s.start)}`;
-            return task && !task.removed ? (
+            return isToday && task && !task.removed ? (
               <button
                 key={i}
                 className={cls}
@@ -113,16 +139,20 @@ export function Timeline({ state, blocks, segs, perTask, now, onPlan }: Props) {
           })}
         </div>
 
-        <div ref={nowRef} className="tl-now" style={{ top: y(nowMin) }}>
-          <span>{hhmm(Math.floor(nowMin))}</span>
-        </div>
+        {isToday && (
+          <div ref={nowRef} className="tl-now" style={{ top: y(nowMin) }}>
+            <span>{hhmm(Math.floor(nowMin))}</span>
+          </div>
+        )}
 
         {empty && (
-          <div className="tl-empty" style={{ top: y(nowMin) + 28 }}>
-            <p>Nothing planned and nothing logged yet.</p>
-            <button className="btn btn-solid plan-toggle" onClick={onPlan}>
-              Plan the day
-            </button>
+          <div className="tl-empty" style={{ top: isToday ? y(nowMin) + 28 : 28 }}>
+            <p>{past ? 'Nothing was planned or logged that day.' : 'Nothing planned and nothing logged yet.'}</p>
+            {!past && (
+              <button className="btn btn-solid plan-toggle" onClick={onPlan}>
+                Plan the day
+              </button>
+            )}
           </div>
         )}
       </div>

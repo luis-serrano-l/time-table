@@ -131,12 +131,54 @@ try {
   await expect(dock, 'Nothing running');
   assert.equal(await page.locator('.slot.is-done', { hasText: 'Stretch' }).count(), 1);
 
+  // Pin a task to a clock time
+  const openPlan = () => page.getByRole('button', { name: 'Plan', exact: true }).click();
+  const closePlan = () => page.getByRole('button', { name: 'Done', exact: true }).click();
+  await openPlan();
+  await page.getByRole('button', { name: 'Pin Review pull requests to a time' }).click();
+  await page.getByLabel('Time for Review pull requests').fill('14:00');
+  await shot('6-pinned');
+  await closePlan();
+  assert.match(
+    await page.locator('.slot', { hasText: 'Review pull requests' }).getAttribute('aria-label'),
+    /planned 14:00 for 30m/,
+  );
+
+  // Another day: plan it ahead, no timers there, and back
+  await page.getByRole('button', { name: 'Next day' }).click();
+  await expect(page.locator('h1'), 'Thursday');
+  assert.equal(await page.locator('.tl-now').count(), 0);
+  assert.equal(await page.locator('.slot').count(), 0);
+  await openPlan();
+  await page.getByLabel('New task for Thursday').fill('Prepare slides');
+  await page.getByRole('button', { name: 'Add', exact: true }).click();
+  await closePlan();
+  assert.equal(await page.locator('div.slot').count(), 1);
+  await page.getByRole('button', { name: 'Back to today' }).click();
+  await expect(page.locator('h1'), 'Wednesday');
+  assert.equal(await page.locator('.slot').count(), 4);
+
+  // Repeat a task every Wednesday: there next week, not the day before
+  await openPlan();
+  await page.getByRole('button', { name: 'Repeat Stretch' }).click();
+  await shot('7-repeat');
+  await page.getByRole('button', { name: 'Save repeat' }).click();
+  await closePlan();
+  for (let i = 0; i < 6; i++) await page.getByRole('button', { name: 'Next day' }).click();
+  await expect(page.locator('h1'), 'Tuesday');
+  assert.equal(await page.locator('.slot', { hasText: 'Stretch' }).count(), 0);
+  await page.getByRole('button', { name: 'Next day' }).click();
+  await expect(page.locator('h1'), 'Wednesday');
+  assert.equal(await page.locator('.slot.is-pinned', { hasText: 'Stretch' }).count(), 1);
+  await shot('8-next-week');
+  await page.getByRole('button', { name: 'Back to today' }).click();
+
   if (SHOTS) {
     await page.emulateMedia({ colorScheme: 'dark' });
-    await shot('6-dark');
+    await shot('9-dark');
     await page.setViewportSize({ width: 1280, height: 820 });
     await page.emulateMedia({ colorScheme: 'light' });
-    await shot('7-desktop');
+    await shot('10-desktop');
   }
   assert.deepEqual(errors, []);
   console.log('smoke test passed');

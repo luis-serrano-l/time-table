@@ -81,6 +81,18 @@ export function ruleFor(state: LogState, taskId: string, day: DayKey): RuleVersi
   return found;
 }
 
+/** The rule a task repeats by now, if it still repeats. */
+export function activeRule(state: LogState, taskId: string): RuleVersion | undefined {
+  const versions = state.rules.get(taskId);
+  const last = versions?.[versions.length - 1];
+  return last?.days.length ? last : undefined;
+}
+
+/** Where a day's plan starts before anyone has set it. */
+export function defaultStart(day: DayKey, now: number): number {
+  return day === dayKey(now) ? defaultStartMin(now) : 9 * 60;
+}
+
 /** A project, or a task that has ever repeated: its length and "done" are per day. */
 export function isRepeating(state: LogState, taskId: string): boolean {
   return state.projects.has(taskId) || state.rules.has(taskId);

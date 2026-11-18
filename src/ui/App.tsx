@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { dayKey, daySegments, dayStats, defaultStartMin, planDay } from '../log/day';
+import { addDays, dayKey, daySegments, dayStats, defaultStart, planDay, resolveDay } from '../log/day';
+import type { DayKey } from '../log/types';
 import { applyUpdate, useUpdateWaiting } from '../pwa/register';
 import { actions, useLog } from '../store/store';
 import { DataDialog } from './DataDialog';
 import { Dock } from './Dock';
-import { dur } from './format';
+import { dayWords, dur } from './format';
 import { PlanPanel } from './PlanPanel';
 import { Timeline } from './Timeline';
 
@@ -29,24 +30,41 @@ export function App() {
   const [planOpen, setPlanOpen] = useState(false);
   const [dataOpen, setDataOpen] = useState(false);
 
-  const key = dayKey(now);
-  const plan = state.plans.get(key);
-  const blocks = planDay(state, key, defaultStartMin(now));
-  const segs = daySegments(state, key, now);
-  const stats = dayStats(segs);
+  // Null follows today, so the view rolls over at midnight by itself.
+  const [viewDay, setViewDay] = useState<DayKey | null>(null);
 
-  const date = new Date(now);
-  const weekday = date.toLocaleDateString('en', { weekday: 'long' });
-  const dayMonth = date.toLocaleDateString('en', { day: 'numeric', month: 'long' });
+  const today = dayKey(now);
+  const day = viewDay ?? today;
+  const isToday = day === today;
+  const startMin = resolveDay(state, day).startMin ?? defaultStart(day, now);
+  const blocks = planDay(state, day, startMin);
+  const segs = daySegments(state, day, now);
+  const stats = dayStats(segs);
+  // The dock always talks about now, whatever day is on screen.
+  const todayStats = isToday ? stats : dayStats(daySegments(state, today, now));
+  const { weekday, date } = dayWords(day);
+  const go = (d: DayKey) => setViewDay(d === today ? null : d);
 
   if (!ready) return <div className="boot" aria-busy="true" />;
 
   return (
     <div className="app">
       <header className="top">
-        <h1>
-          {weekday} <span>{dayMonth}</span>
-        </h1>
+        <div className="top-day">
+          <button className="nav" aria-label="Previous day" onClick={() => go(addDays(day, -1))}>
+            <svg viewBox="0 0 12 20" aria-hidden="true">
+              <path d="M9.5 2.5 3 10l6.5 7.5" />
+            </svg>
+          </button>
+          <h1>
+            {weekday} <span>{date}</span>
+          </h1>
+          <button className="nav" aria-label="Next day" onClick={() => go(addDays(day, 1))}>
+            <svg viewBox="0 0 12 20" aria-hidden="true">
+              <path d="M2.5 2.5 9 10l-6.5 7.5" />
+            </svg>
+          </button>
+        </div>
         <div className="top-actions">
           <button className="btn plan-toggle" onClick={() => setPlanOpen(true)}>
             Plan
@@ -55,6 +73,11 @@ export function App() {
             Data
           </button>
         </div>
+        {!isToday && (
+          <button className="btn btn-today" onClick={() => setViewDay(null)}>
+            Back to today
+          </button>
+        )}
         <dl className="tally">
           <div>
             <dt>Logged</dt>
@@ -106,19 +129,25 @@ export function App() {
           segs={segs}
           perTask={stats.perTask}
           now={now}
+          day={day}
+          label={isToday ? 'Today' : `${weekday} ${date}`}
+          isToday={isToday}
+          past={day < today}
           onPlan={() => setPlanOpen(true)}
         />
         <PlanPanel
           state={state}
-          plan={plan}
+          day={day}
+          today={today}
           blocks={blocks}
+          startMin={startMin}
           perTask={stats.perTask}
           open={planOpen}
           onClose={() => setPlanOpen(false)}
         />
       </main>
 
-      <Dock state={state} now={now} perTask={stats.perTask} />
+      <Dock state={state} now={now} perTask={todayStats.perTask} />
 
       {dataOpen && <DataDialog count={count} onClose={() => setDataOpen(false)} />}
     </div>
