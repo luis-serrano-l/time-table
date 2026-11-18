@@ -191,6 +191,14 @@ try {
   await page.getByRole('button', { name: 'Still working' }).click();
   assert.equal(await page.locator('.notice-ask').count(), 0);
   await expect(dock, 'Thesis');
+  if (SHOTS) {
+    // The two pictures in the README, once the plan sheet has slid away
+    await new Promise((r) => setTimeout(r, 800));
+    await page.screenshot({ path: 'docs/day-phone.png' });
+    await page.setViewportSize({ width: 1280, height: 820 });
+    await page.screenshot({ path: 'docs/day-desktop.png' });
+    await page.setViewportSize({ width: 390, height: 800 });
+  }
   await openPlan();
   await expect(project, '1h 01m of 1h');
   await expect(project, 'The hours are used up');

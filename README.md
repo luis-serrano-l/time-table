@@ -28,13 +28,23 @@ planning, logging and looking back all happen on it.
 
 | You want to | Do this |
 |---|---|
-| Plan the day | **Plan**, add tasks in the order you mean to do them, set a size for each. They are laid out end to end from the start time. |
+| Plan the day | **Plan**, add tasks in the order you mean to do them, set a length for each (from 5 minutes). They are laid out end to end from the start time. |
+| Fix a task to a time | The diamond on its row, then set the time. The other tasks flow around it. |
+| Plan another day | The arrows beside the date. Days already over can be read, not changed. |
 | Start working | Tap a planned block. |
 | Switch task | Tap another block. The first one stops by itself: only one thing runs at a time. |
 | Pause | Tap the running block again, or **Pause**. |
+| Finish early | **Finish**, next to Pause. The timer stops and the task is marked finished. |
 | Log an interruption | **Interruption**. The task you were on is set aside; **Back to work** resumes it. |
 | Do something unplanned | **+**, type a name, and it is already running. |
-| Finish a task | The check mark in the plan. |
+| Repeat a task | The circular arrow on its row: choose the days, a time and a length. It appears on those days by itself, and each day can still have its own time and length. |
+| Work off a project | **New project** in the plan: a name, a total of hours, and optionally the days and length of its sessions. Only time you log uses up the hours. When they run out, **Finish project** or **Add time**. |
+| Take something back | **Undo**, shown for a few seconds after you delete, take off or finish a task. |
+| Pick up yesterday's leftovers | The box at the top of today's plan lists what was not finished: **Add all**, or bring tasks back one at a time. |
+
+If a timer runs far past its planned length, or is still running when you
+come back after an hour or more, the app asks whether you are still on it.
+You can say when the work really ended. It never stops a timer by itself.
 
 On the timeline, a dashed outline is a planned block and a solid bar is time
 you logged. A hatched bar is an interruption. A gold edge marks a deep
@@ -60,9 +70,12 @@ logged time, task switches, interruptions and deep stretches for the day.
 ## How it works
 
 The log is an append-only list of events (task added, plan set, started,
-stopped, interruption started and ended). Everything on screen is computed
-from it. That makes a running timer just "started at this moment", so it
-survives the app being closed, and it makes a backup one file.
+stopped, interruption started and ended, repeat rule set, and so on).
+Everything on screen is computed from it. That makes a running timer just
+"started at this moment", so it survives the app being closed, and it makes
+a backup one file. A repeating task is a rule, not a row per day: its
+occurrences are worked out when a day is shown, so merging two devices never
+doubles them. Undo adds entries that reverse a change; nothing is removed.
 
 ```
 src/log/     event types and the pure functions that turn events into the day
@@ -97,7 +110,9 @@ Actions*. The included workflow tests, builds and publishes on every push to
 ## Roadmap
 
 - [x] Plan and log on one timeline, interruptions, export and import, offline
-- [ ] Evening review, unfinished tasks roll over, fill gaps after the fact, catch a forgotten timer
+- [x] Tasks from 5 minutes, pinned times, other days, repeating tasks, projects with a total of hours
+- [x] Undo, unfinished tasks roll over, catch a forgotten timer
+- [ ] Evening review, fill gaps and trim logged time after the fact
 - [ ] Insights: best hours of the day, how far estimates are off, interruption patterns, trends
 - [ ] Icon badge and notification buttons while a timer runs, keyboard shortcuts, automatic backups
 
