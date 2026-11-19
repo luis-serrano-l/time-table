@@ -28,6 +28,7 @@ export type DaySegment = {
   end: number;
   running: boolean;
   away?: boolean;
+  note?: string;
   /** Minutes from local midnight, for drawing. */
   startMin: number;
   endMin: number;
@@ -53,6 +54,7 @@ export function daySegments(state: LogState, key: DayKey, now: number): DaySegme
       end,
       running: seg.end === undefined,
       away: seg.away,
+      note: seg.note,
       startMin,
       endMin: Math.max(startMin, end === to ? 24 * 60 : wallMin(end)),
       wholeMs: segEnd - seg.start,

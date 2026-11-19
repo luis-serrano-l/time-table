@@ -2,6 +2,9 @@ import { HUES, type LogEvent, type LogState, type RuleVersion, type Segment } fr
 
 const num = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 
+/** The longest note a logged stretch keeps. */
+export const NOTE_MAX = 120;
+
 /** While replaying, the reducer also remembers the stretch that was closed last. */
 type Working = LogState & { closed?: Segment };
 
@@ -124,6 +127,11 @@ function apply(s: Working, e: LogEvent) {
         s.segments.splice(s.segments.indexOf(seg), 1);
         s.bin.set(seg.id, seg);
         return;
+      }
+      if (typeof e.note === 'string') {
+        const note = e.note.trim().slice(0, NOTE_MAX);
+        if (note) seg.note = note;
+        else delete seg.note;
       }
       // An edit never reaches past the moment it was made, and never turns a stretch inside out.
       const start = Math.min(num(e.start) ? e.start : seg.start, e.at);

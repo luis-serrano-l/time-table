@@ -75,6 +75,23 @@ describe('reduce', () => {
     expect(reduce([add('a')]).tasks.get('a')!.focus).toBe(false);
   });
 
+  it('an interruption can say what happened, while it runs or after', () => {
+    const begun = at('interruption.started', 5);
+    const note = (text: string, min: number) => ev({ type: 'seg.edited', at: T0 + min * MIN, segId: begun.id, note: text });
+    const running = reduce([add('a'), start('a', 0), begun, note('  Phone call  ', 6)]);
+    expect(running.open?.note).toBe('Phone call');
+    expect(running.open?.end).toBeUndefined();
+
+    const closed = reduce([add('a'), start('a', 0), begun, at('interruption.ended', 8), note('The door', 9)]);
+    const seg = closed.segments[1];
+    expect([seg.note, seg.start, seg.end]).toEqual(['The door', T0 + 5 * MIN, T0 + 8 * MIN]);
+    expect(daySegments(closed, dayKey(T0), T0 + 10 * MIN)[1].note).toBe('The door');
+
+    const cleared = reduce([add('a'), start('a', 0), begun, at('interruption.ended', 8), note('The door', 9), note(' ', 10)]);
+    expect(cleared.segments[1].note).toBeUndefined();
+    expect(reduce([add('a'), start('a', 0), begun, note('x'.repeat(500), 6)]).open?.note).toHaveLength(120);
+  });
+
   it('does not resume anything after an interruption that started from idle', () => {
     const s = reduce([add('a'), at('interruption.started', 0), at('interruption.ended', 3)]);
     expect(s.open).toBeNull();

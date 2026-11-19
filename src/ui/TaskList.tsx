@@ -23,7 +23,8 @@ type Props = {
 export function TaskList({ state, day, today, dayName, now, entries, perTask }: Props) {
   const [title, setTitle] = useState('');
   const [dialog, setDialog] = useState<{ task?: Task; title?: string } | null>(null);
-  const [showDone, setShowDone] = useState(false);
+  // Until it is folded or unfolded by hand, Done is open when nothing else is left to do.
+  const [doneOpen, setDoneOpen] = useState<boolean | null>(null);
   const [showOther, setShowOther] = useState(false);
 
   const isToday = day === today;
@@ -33,6 +34,7 @@ export function TaskList({ state, day, today, dayName, now, entries, perTask }: 
 
   const todo = entries.filter((e) => !e.done);
   const done = entries.filter((e) => e.done);
+  const showDone = doneOpen ?? (isToday && todo.length === 0);
   const running = todo.find((e) => e.task.id === runningId);
   const waiting = todo.filter((e) => e !== running);
   const waitingIds = waiting.map((e) => e.task.id);
@@ -129,7 +131,7 @@ export function TaskList({ state, day, today, dayName, now, entries, perTask }: 
 
       {done.length > 0 && (
         <>
-          <button className="fold" aria-expanded={showDone} onClick={() => setShowDone(!showDone)}>
+          <button className="fold" aria-expanded={showDone} onClick={() => setDoneOpen(!showDone)}>
             Done <span>{done.length}</span>
           </button>
           {showDone && <ul className="cards">{done.map((e) => card(e))}</ul>}

@@ -61,6 +61,23 @@ describe('reduce', () => {
     expect(s.tasks.get('a')!.done).toBe(false);
   });
 
+  it('a task done for today can be picked up again the same day', () => {
+    const s = reduce([
+      add('a'),
+      rule('a', DAY, [WED]),
+      ...worked('a', 0, 20),
+      done('a', T0 + 20 * MIN + 1, DAY),
+      ev({ type: 'task.done', at: T0 + 60 * MIN, taskId: 'a', done: false, day: DAY }),
+      ev({ type: 'started', at: T0 + 60 * MIN + 1, taskId: 'a' }),
+    ]);
+    expect(resolveDay(s, DAY, DAY)[0].done).toBe(false);
+    expect(s.segments).toHaveLength(2);
+    // The time in between is not work.
+    expect(s.segments[0].end).toBe(T0 + 20 * MIN);
+    expect(s.open?.taskId).toBe('a');
+    expect(s.open?.start).toBe(T0 + 60 * MIN + 1);
+  });
+
   it('stopped with endAt closes in the past, never before the start', () => {
     const start = ev({ type: 'started', at: T0, taskId: 'a' });
     const early = reduce([add('a'), start, ev({ type: 'stopped', at: T0 + 90 * MIN, endAt: T0 + 40 * MIN })]);

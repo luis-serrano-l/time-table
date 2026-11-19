@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { atMinute, checkEntry, dayRange, daySegments, resolveDay, dayKey, snapEntry } from '../log/day';
+import { NOTE_MAX } from '../log/reduce';
 import type { DayKey, LogState } from '../log/types';
 import { actions } from '../store/store';
 import { dayWords, parseHhmm, timeOf } from './format';
@@ -39,6 +40,7 @@ export function EntryDialog({ state, day, now, segId, onClose }: Props) {
   const [taskId, setTaskId] = useState(tasks[0]?.id ?? '');
   const [start, setStart] = useState(timeOf(first.start));
   const [end, setEnd] = useState(first.end !== undefined ? timeOf(first.end) : '');
+  const [note, setNote] = useState(seg?.note ?? '');
   const [problem, setProblem] = useState<string | null>(null);
 
   useEffect(() => {
@@ -73,10 +75,11 @@ export function EntryDialog({ state, day, now, segId, onClose }: Props) {
     }
     if (bad) return setProblem(bad.kind === 'empty' ? 'The end has to be after the start.' : 'That is still ahead of now.');
     if (seg) {
-      const change: { start?: number; end?: number } = {};
+      const change: { start?: number; end?: number; note?: string } = {};
       if (nextStart !== seg.start) change.start = nextStart;
       if (nextEnd !== undefined && nextEnd !== seg.end) change.end = nextEnd;
-      if (change.start !== undefined || change.end !== undefined) actions.editEntry(seg.id, change);
+      if (note.trim() !== (seg.note ?? '')) change.note = note.trim();
+      if (Object.keys(change).length) actions.editEntry(seg.id, change);
     } else if (taskId && nextEnd !== undefined) actions.addEntry(taskId, nextStart, nextEnd);
     onClose();
   }
@@ -96,6 +99,12 @@ export function EntryDialog({ state, day, now, segId, onClose }: Props) {
                   </option>
                 ))}
               </select>
+            </label>
+          )}
+          {seg?.kind === 'interruption' && (
+            <label>
+              What happened
+              <input value={note} onChange={(e) => setNote(e.target.value)} maxLength={NOTE_MAX} placeholder="A call, a question, a break" />
             </label>
           )}
           <label>

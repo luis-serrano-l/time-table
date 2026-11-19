@@ -29,7 +29,8 @@ export function DayLog({ state, day, today, now, segs }: Props) {
       <ol className="log-list">
         {segs.map((s) => {
           const task = s.taskId ? state.tasks.get(s.taskId) : undefined;
-          const what = s.kind === 'interruption' ? (s.away ? 'Left the app' : 'Interruption') : (task?.title ?? 'Task');
+          const kind = s.kind === 'interruption' ? (s.away ? 'Left the app' : 'Interruption') : (task?.title ?? 'Task');
+          const what = s.note ? `${kind}: ${s.note}` : kind;
           const deep = s.kind === 'task' && s.wholeMs >= DEEP_MIN * 60000;
           const from = timeOf(s.start);
           const to = s.running ? 'now' : timeOf(s.end);
@@ -46,7 +47,7 @@ export function DayLog({ state, day, today, now, segs }: Props) {
                   {to}
                 </span>
                 <span className={`dot${s.kind === 'interruption' ? ' dot-int' : ''}`} />
-                <span className="log-what">{what}</span>
+                <span className="log-what">{s.note ?? kind}</span>
                 {deep && <span className="log-deep">deep</span>}
                 <span className="log-dur">{dur(s.end - s.start)}</span>
               </button>

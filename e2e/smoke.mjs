@@ -147,6 +147,14 @@ try {
   assert.equal(await page.locator('.log-row.is-int').count(), 0);
   await page.locator('.toast').getByRole('button', { name: 'Undo' }).click();
   assert.equal(await page.locator('.log-row.is-int').count(), 1);
+  // An interruption can say what happened
+  await page.getByRole('button', { name: /^Interruption, 09:44/ }).click();
+  await page.getByRole('textbox', { name: 'What happened' }).fill('Phone call');
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect(page.locator('.log-row.is-int'), 'Phone call');
+  await page.getByRole('button', { name: /^Interruption: Phone call, 09:44/ }).click();
+  assert.equal(await page.getByRole('textbox', { name: 'What happened' }).inputValue(), 'Phone call');
+  await page.getByRole('button', { name: 'Cancel' }).click();
   await shot('6-log');
 
   // A repeating task: Wednesdays, ended for today from the dock
@@ -158,6 +166,13 @@ try {
   await expect(card('Stretch'), 'Wed');
   await page.getByRole('button', { name: /^Stretch.*Start$/ }).click();
   await page.clock.fastForward('05:00');
+  await dock.getByRole('button', { name: 'Done for today' }).click();
+  await expect(page.locator('.card.is-done', { hasText: 'Stretch' }), 'Stretch');
+  // Done for today is not final: one tap on the card picks it up again
+  await page.getByRole('button', { name: 'Stretch. Done for today. Resume' }).click();
+  await expect(dock, 'Stretch');
+  assert.equal(await page.locator('.card.is-done', { hasText: 'Stretch' }).count(), 0);
+  await page.clock.fastForward('01:00');
   await dock.getByRole('button', { name: 'Done for today' }).click();
   await expect(page.locator('.card.is-done', { hasText: 'Stretch' }), 'Stretch');
 

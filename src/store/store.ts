@@ -244,6 +244,10 @@ export const actions = {
     const open = snap.state.open;
     if (open?.kind === 'task' && open.taskId) actions.setDone(today(), open.taskId, true);
   },
+  /** Back to a task that was done for today: it is not done after all, and it is running. */
+  resumeToday(taskId: string) {
+    append({ type: 'task.done', taskId, done: false, day: today() }, { type: 'started', taskId });
+  },
   remove(taskId: string) {
     const stops = isRunning(taskId);
     if (stops) append({ type: 'stopped' }, { type: 'task.removed', taskId });
@@ -266,8 +270,8 @@ export const actions = {
   stopAt(endAt: number) {
     append({ type: 'stopped', endAt });
   },
-  /** Correct when a logged stretch started or ended. The caller has checked it with checkEntry. */
-  editEntry(segId: string, change: { start?: number; end?: number }) {
+  /** Correct when a logged stretch started or ended, or say what it was. The caller has checked it with checkEntry. */
+  editEntry(segId: string, change: { start?: number; end?: number; note?: string }) {
     append({ type: 'seg.edited', segId, ...change });
   },
   removeEntry(segId: string, label: string) {

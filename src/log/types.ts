@@ -32,8 +32,8 @@ export type LogEvent =
   | (Base & { type: 'stopped'; endAt?: number })
   /** Shortens a stretch that is already closed. Older logs only: see `seg.edited`. */
   | (Base & { type: 'trimmed'; segStart: number; endAt: number })
-  /** Corrects a logged stretch: move its start or end, delete it, or bring it back. */
-  | (Base & { type: 'seg.edited'; segId: string; start?: number; end?: number; removed?: boolean })
+  /** Corrects a logged stretch: move its start or end, say what it was, delete it, or bring it back. */
+  | (Base & { type: 'seg.edited'; segId: string; start?: number; end?: number; removed?: boolean; note?: string })
   /** A stretch written in by hand, for work that was never timed. Its id is this event's id. */
   | (Base & { type: 'seg.added'; taskId: string; start: number; end: number })
   /**
@@ -69,6 +69,8 @@ export type Segment = {
   end?: number; // undefined while running
   /** An interruption that was the app being left during a focus task. */
   away?: boolean;
+  /** What happened, in the person's words. */
+  note?: string;
 };
 
 export type Plan = { taskIds: string[] };

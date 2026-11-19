@@ -44,7 +44,11 @@ export function TaskCard({ state, entry, day, now, ms, mode, running, drag, onMo
   const rule = ruleFor(state, task.id, day);
   const over = task.estimateMin !== null && ms > task.estimateMin * 60000;
 
+  // Done for today only, not finished for good: one tap picks it up again.
+  const again = mode === 'run' && done && !task.done;
+
   const meta: string[] = [];
+  if (again) meta.push('done for today, tap to resume');
   if (mode === 'plan') {
     if (task.estimateMin !== null) meta.push(`about ${dur(task.estimateMin * 60000)}`);
   } else if (task.estimateMin !== null) meta.push(`${dur(ms)} of ${dur(task.estimateMin * 60000)}`);
@@ -55,7 +59,7 @@ export function TaskCard({ state, entry, day, now, ms, mode, running, drag, onMo
 
   const text = (
     <>
-      <span className="card-mark">{done ? <Check /> : running ? <Pause /> : <Play />}</span>
+      <span className="card-mark">{again ? <Play /> : done ? <Check /> : running ? <Pause /> : <Play />}</span>
       <span className="card-text">
         <strong>{task.title}</strong>
         {meta.length > 0 && <small className={over && !done ? 'is-over' : ''}>{meta.join(', ')}</small>}
@@ -84,6 +88,14 @@ export function TaskCard({ state, entry, day, now, ms, mode, running, drag, onMo
             aria-pressed={!!running}
             aria-label={`${task.title}${meta.length ? `, ${meta.join(', ')}` : ''}. ${running ? 'Pause' : 'Start'}`}
             onClick={() => actions.toggle(task.id)}
+          >
+            {text}
+          </button>
+        ) : again ? (
+          <button
+            className="card-main"
+            aria-label={`${task.title}. Done for today. Resume`}
+            onClick={() => actions.resumeToday(task.id)}
           >
             {text}
           </button>
