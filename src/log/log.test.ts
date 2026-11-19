@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dayKey, dayRange, daySegments, dayStats, planDay } from './day';
+import { dayKey, dayRange, daySegments, dayStats, resolveDay } from './day';
 import { reduce } from './reduce';
 import type { LogEvent } from './types';
 
@@ -86,19 +86,15 @@ describe('reduce', () => {
 describe('day', () => {
   const key = dayKey(T0);
 
-  it('lays the plan out end to end, skipping removed tasks', () => {
+  it('lists the day in the order given, skipping removed tasks', () => {
     const s = reduce([
       add('a', 30),
       add('b', 45),
       add('c', 15),
       ev({ type: 'task.removed', at: T0, taskId: 'b' }),
-      ev({ type: 'plan.set', at: T0, day: key, taskIds: ['a', 'b', 'c'], startMin: 540 }),
+      ev({ type: 'plan.set', at: T0, day: key, taskIds: ['c', 'b', 'a'] }),
     ]);
-    const blocks = planDay(s, key, 0);
-    expect(blocks.map((b) => [b.task.id, b.startMin, b.endMin])).toEqual([
-      ['a', 540, 570],
-      ['c', 570, 585],
-    ]);
+    expect(resolveDay(s, key, key).map((e) => e.task.id)).toEqual(['c', 'a']);
   });
 
   it('counts time, switches, interruptions and deep stretches', () => {

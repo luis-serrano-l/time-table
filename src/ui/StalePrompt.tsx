@@ -26,7 +26,7 @@ export function StalePrompt({ stale, title, now, onStillWorking }: Props) {
         <strong>Still on {title}?</strong>{' '}
         {stale.reason === 'gap'
           ? `The timer kept running while the app was closed: ${dur(now - stale.segStart)} so far.`
-          : `It has run well past its planned time: ${dur(now - stale.segStart)} in this stretch.`}
+          : `It has run well past its estimate: ${dur(now - stale.segStart)} in this stretch.`}
       </p>
       <div className="notice-row">
         <button className="btn btn-solid" onClick={onStillWorking}>

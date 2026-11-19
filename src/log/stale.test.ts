@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addDays, carryOver, dayKey } from './day';
+import { dayKey } from './day';
 import { reduce } from './reduce';
 import { snoozeFor, staleTimer } from './stale';
 import type { LogEvent } from './types';
@@ -57,44 +57,6 @@ describe('forgotten timer', () => {
 
   it('says nothing when nothing is running', () => {
     expect(staleTimer(reduce([add('a')]), T0, { plannedMin: 30, loggedMs: 99 * MIN })).toBeNull();
-  });
-});
-
-describe('roll-over', () => {
-  const plan = (day: string, taskIds: string[]) => ev({ type: 'plan.set', at: T0, day, taskIds, startMin: 540 });
-  const yesterday = addDays(DAY, -1);
-
-  it('offers yesterday\'s unfinished tasks', () => {
-    const s = reduce([add('a'), add('b'), plan(yesterday, ['a', 'b']), ev({ type: 'task.done', at: T0, taskId: 'a', done: true })]);
-    const c = carryOver(s, DAY)!;
-    expect(c.from).toBe(yesterday);
-    expect(c.tasks.map((t) => t.id)).toEqual(['b']);
-  });
-
-  it('skips repeating, removed and already-planned tasks', () => {
-    const s = reduce([
-      add('a'),
-      add('b'),
-      add('c'),
-      add('d'),
-      ev({ type: 'rule.set', at: T0, taskId: 'a', from: yesterday, days: [0, 1, 2, 3, 4, 5, 6], lengthMin: 30 }),
-      ev({ type: 'task.removed', at: T0, taskId: 'b' }),
-      plan(yesterday, ['a', 'b', 'c', 'd']),
-      plan(DAY, ['c']),
-    ]);
-    expect(carryOver(s, DAY)!.tasks.map((t) => t.id)).toEqual(['d']);
-  });
-
-  it('looks back over a weekend', () => {
-    const s = reduce([add('a'), plan(addDays(DAY, -3), ['a'])]);
-    expect(carryOver(s, DAY)!.from).toBe(addDays(DAY, -3));
-  });
-
-  it('offers nothing when all was finished, or the last plan is over a week old', () => {
-    const done = reduce([add('a'), plan(yesterday, ['a']), ev({ type: 'task.done', at: T0, taskId: 'a', done: true })]);
-    expect(carryOver(done, DAY)).toBeNull();
-    const old = reduce([add('a'), plan(addDays(DAY, -8), ['a'])]);
-    expect(carryOver(old, DAY)).toBeNull();
   });
 });
 

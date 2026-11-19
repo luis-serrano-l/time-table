@@ -1,10 +1,9 @@
 import { useState, type FormEvent } from 'react';
 import type { LogState } from '../log/types';
 import { actions } from '../store/store';
-import { dayKey } from '../log/day';
+import { isRepeating } from '../log/day';
 import { projectProgress } from '../log/project';
 import { clock, dur, span } from './format';
-import { LengthSelect } from './LengthSelect';
 
 type Props = { state: LogState; now: number; perTask: Map<string, number> };
 
@@ -12,18 +11,17 @@ type Props = { state: LogState; now: number; perTask: Map<string, number> };
 export function Dock({ state, now, perTask }: Props) {
   const [adding, setAdding] = useState(false);
   const [title, setTitle] = useState('');
-  const [length, setLength] = useState(30);
   const open = state.open;
   const task = open?.taskId ? state.tasks.get(open.taskId) : undefined;
   const parked = state.parked ? state.tasks.get(state.parked) : undefined;
   const elapsed = open ? now - open.start : 0;
-  const project = task ? projectProgress(state, task.id, now, dayKey(now)) : null;
+  const project = task ? projectProgress(state, task.id, now) : null;
 
   function submit(e: FormEvent) {
     e.preventDefault();
     const t = title.trim();
     if (!t) return;
-    actions.startNew(t, length);
+    actions.startNew(t);
     setTitle('');
     setAdding(false);
   }
@@ -40,7 +38,6 @@ export function Dock({ state, now, perTask }: Props) {
           aria-label="Name of the task to start now"
           maxLength={80}
         />
-        <LengthSelect value={length} onChange={setLength} />
         <button className="btn btn-solid" type="submit" disabled={!title.trim()}>
           Start
         </button>
@@ -92,7 +89,7 @@ export function Dock({ state, now, perTask }: Props) {
         )}
         {open?.kind === 'task' && (
           <button className="btn btn-solid" onClick={actions.finish}>
-            Finish
+            {task && isRepeating(state, task.id) ? 'Done for today' : 'Finish'}
           </button>
         )}
         {open?.kind === 'interruption' ? (
@@ -104,7 +101,7 @@ export function Dock({ state, now, perTask }: Props) {
             Interruption
           </button>
         )}
-        <button className="btn btn-plus" onClick={() => setAdding(true)} aria-label="Start something unplanned">
+        <button className="btn btn-plus" onClick={() => setAdding(true)} aria-label="Start something new right now">
           +
         </button>
       </div>

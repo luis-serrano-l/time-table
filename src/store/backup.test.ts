@@ -22,11 +22,12 @@ describe('backup', () => {
     ).toThrow('cannot read');
   });
 
-  it('accepts v1 and v2 files and still refuses a newer one', () => {
+  it('accepts v1, v2 and v3 files and still refuses a newer one', () => {
     const file = (version: number) => JSON.stringify({ format: 'time-table-log', version, events: [a] });
     expect(fromBackup(file(1))).toEqual([a]);
     expect(fromBackup(file(2))).toEqual([a]);
-    expect(() => fromBackup(file(3))).toThrow('newer version');
+    expect(fromBackup(file(3))).toEqual([a]);
+    expect(() => fromBackup(file(4))).toThrow('newer version');
   });
 
   it('round-trips the newer kinds of entry', () => {
@@ -37,6 +38,10 @@ describe('backup', () => {
       { id: 'f', at: 6, type: 'project.set', taskId: 't', budgetMin: 2400 },
       { id: 'g', at: 7, type: 'trimmed', segStart: 2, endAt: 3 },
       { id: 'h', at: 8, type: 'stopped', endAt: 7 },
+      { id: 'i', at: 9, type: 'seg.edited', segId: 'b', start: 1, end: 2 },
+      { id: 'j', at: 10, type: 'seg.edited', segId: 'b', removed: true },
+      { id: 'k', at: 11, type: 'seg.added', taskId: 't', start: 3, end: 4 },
+      { id: 'l', at: 12, type: 'task.added', taskId: 'u', title: 'No estimate' },
     ];
     expect(fromBackup(toBackup(events, 0))).toEqual(events);
   });

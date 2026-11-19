@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react';
-import { activeRule, addDays, dayKey, defaultStart, isRepeating, resolveDay } from '../log/day';
+import { activeRule, addDays, dayKey, isRepeating, resolveDay, weekday } from '../log/day';
 import { emptyState, reduce } from '../log/reduce';
-import { MAX_LEN, MIN_LEN, type DayKey, type LogEvent, type LogState } from '../log/types';
+import type { DayKey, LogEvent, LogState } from '../log/types';
 import { fromBackup, mergeLogs, toBackup } from './backup';
 import { clearEvents, loadEvents, saveEvents } from './db';
 import { clearLocal } from './local';
@@ -90,10 +90,10 @@ const resume = (taskId: string, wasRunning: boolean): New[] =>
 const uid = () => crypto.randomUUID();
 const today = () => dayKey(Date.now());
 
-/** The day's plan as it stands, repeating tasks included, ready to be written back. */
+/** The day's list as it stands, repeating and carried tasks included, ready to be written back. */
 function planFor(day: DayKey) {
-  const { startMin, entries } = resolveDay(snap.state, day);
-  return { entries, taskIds: entries.map((e) => e.task.id), startMin: startMin ?? defaultStart(day, Date.now()) };
+  const entries = resolveDay(snap.state, day, today());
+  return { entries, taskIds: entries.map((e) => e.task.id) };
 }
 
 const isRunning = (taskId: string) => {
@@ -101,8 +101,18 @@ const isRunning = (taskId: string) => {
   return open?.kind === 'task' && open.taskId === taskId;
 };
 
-export type ProjectInput = { title: string; budgetMin: number; sessionMin: number; days: number[]; atMin?: number };
-export type RuleInput = { days: number[]; atMin?: number; lengthMin: number };
+/** Putting a task on a day undoes an earlier "take off" for that day. */
+const unskip = (day: DayKey, taskId: string): New[] =>
+  snap.state.overrides.get(day)?.get(taskId)?.skip ? [{ type: 'entry.set', day, taskId, skip: false }] : [];
+
+export type TaskInput = {
+  title: string;
+  estimateMin: number | null;
+  /** Weekdays it repeats on; empty for a task that does not repeat. */
+  days: number[];
+  /** Total minutes, for a project. */
+  budgetMin: number | null;
+};
 
 export const actions = {
   /** Tap a task: start it, or pause it if it is the one running. */
@@ -119,123 +129,78 @@ export const actions = {
   endInterruption() {
     append({ type: 'interruption.ended' });
   },
-  /** Something unplanned came up: name it and it is already running. */
-  startNew(title: string, estimateMin = 30) {
+  /** Something unplanned came up: name it and it is on today and already running. */
+  startNew(title: string) {
     const taskId = uid();
+    const day = today();
     append(
-      { type: 'task.added', taskId, title, estimateMin },
+      { type: 'task.added', taskId, title },
+      { type: 'plan.set', day, taskIds: [...planFor(day).taskIds, taskId] },
       { type: 'started', taskId },
     );
   },
-  addToPlan(day: DayKey, title: string, estimateMin = 30) {
+  /** A new task. One that repeats, or a project with set days, comes up by its rule; anything else goes on `day`. */
+  addTask(day: DayKey, t: TaskInput) {
     const taskId = uid();
-    const plan = planFor(day);
-    append(
-      { type: 'task.added', taskId, title, estimateMin },
-      { type: 'plan.set', day, taskIds: [...plan.taskIds, taskId], startMin: plan.startMin },
-    );
+    const items: New[] = [{ type: 'task.added', taskId, title: t.title, estimateMin: t.estimateMin ?? undefined }];
+    if (t.budgetMin) items.push({ type: 'project.set', taskId, budgetMin: t.budgetMin });
+    if (t.days.length) items.push({ type: 'rule.set', taskId, from: day, days: t.days });
+    if (!t.days.includes(weekday(day))) items.push({ type: 'plan.set', day, taskIds: [...planFor(day).taskIds, taskId] });
+    append(...items);
+  },
+  editTask(taskId: string, t: TaskInput, from: DayKey) {
+    const task = snap.state.tasks.get(taskId);
+    if (!task) return;
+    const rule = activeRule(snap.state, taskId);
+    const items: New[] = [];
+    if (t.title !== task.title) items.push({ type: 'task.edited', taskId, title: t.title });
+    if (t.estimateMin !== task.estimateMin) items.push({ type: 'task.edited', taskId, estimateMin: t.estimateMin });
+    if (t.budgetMin && t.budgetMin !== snap.state.projects.get(taskId)?.budgetMin) {
+      items.push({ type: 'project.set', taskId, budgetMin: t.budgetMin });
+    }
+    const same = rule && [...rule.days].sort().join() === [...t.days].sort().join();
+    if (t.days.length && !same) {
+      // Finished for good becomes finished today: it has to come up again next time.
+      if (task.done) {
+        items.push({ type: 'task.done', taskId, done: false }, { type: 'task.done', taskId, done: true, day: today() });
+      }
+      items.push({ type: 'rule.set', taskId, from, days: t.days });
+    } else if (!t.days.length && rule) {
+      // Stops from tomorrow. Days already gone keep what they had.
+      items.push({ type: 'rule.set', taskId, from: addDays(today(), 1), days: [] });
+    }
+    if (items.length) append(...items);
   },
   planExisting(day: DayKey, taskId: string) {
     const plan = planFor(day);
     if (plan.taskIds.includes(taskId)) return;
-    append({ type: 'plan.set', day, taskIds: [...plan.taskIds, taskId], startMin: plan.startMin });
+    append(...unskip(day, taskId), { type: 'plan.set', day, taskIds: [...plan.taskIds, taskId] });
   },
   unplan(day: DayKey, taskId: string) {
     const plan = planFor(day);
     const entry = plan.entries.find((e) => e.task.id === taskId);
     if (!entry) return;
-    const items: New[] = [
-      { type: 'plan.set', day, taskIds: plan.taskIds.filter((id) => id !== taskId), startMin: plan.startMin },
-    ];
-    // A repeating task would come straight back, so this day's occurrence is skipped.
-    if (entry.ruled) items.push({ type: 'entry.set', day, taskId, skip: true });
-    // A task taken off today's plan must not keep running out of sight.
+    const items: New[] = [];
+    if (entry.listed) items.push({ type: 'plan.set', day, taskIds: plan.entries.filter((e) => e.listed && e.task.id !== taskId).map((e) => e.task.id) });
+    // A repeating task would come straight back, and so would one carried over
+    // from an earlier day, so the day itself says it was taken off.
+    items.push({ type: 'entry.set', day, taskId, skip: true });
+    // A task taken off today must not keep running out of sight.
     const stops = day === today() && isRunning(taskId);
     if (stops) items.unshift({ type: 'stopped' });
     append(...items);
-    const back: New[] = [{ type: 'plan.set', day, taskIds: plan.taskIds, startMin: plan.startMin }];
-    if (entry.ruled) back.push({ type: 'entry.set', day, taskId, skip: false });
+    const back: New[] = [{ type: 'entry.set', day, taskId, skip: false }];
+    if (entry.listed) back.unshift({ type: 'plan.set', day, taskIds: plan.entries.filter((e) => e.listed).map((e) => e.task.id) });
     offerUndo(`Took ${entry.task.title} off ${day === today() ? 'today' : 'that day'}`, [...back, ...resume(taskId, stops)]);
   },
-  /** Put several tasks on a day at once, after what is already there. */
-  planMany(day: DayKey, taskIds: string[]) {
+  /** The day's tasks in a new order. Every task on the day is written down, so the order holds. */
+  reorder(day: DayKey, taskIds: string[]) {
     const plan = planFor(day);
-    const more = taskIds.filter((id) => !plan.taskIds.includes(id));
-    if (more.length) append({ type: 'plan.set', day, taskIds: [...plan.taskIds, ...more], startMin: plan.startMin });
-  },
-  /** Move a task one place earlier (-1) or later (1) among those that are not pinned to a time. */
-  move(day: DayKey, taskId: string, by: -1 | 1) {
-    const plan = planFor(day);
-    const flow = plan.entries.filter((e) => e.pinMin === null).map((e) => e.task.id);
-    const i = flow.indexOf(taskId);
-    const j = i + by;
-    if (i < 0 || j < 0 || j >= flow.length) return;
-    [flow[i], flow[j]] = [flow[j], flow[i]];
-    let k = 0;
-    const taskIds = plan.entries.map((e) => (e.pinMin === null ? flow[k++] : e.task.id));
-    append({ type: 'plan.set', day, taskIds, startMin: plan.startMin });
-  },
-  setPlanStart(day: DayKey, startMin: number) {
-    append({ type: 'plan.set', day, taskIds: planFor(day).taskIds, startMin });
-  },
-  rename(taskId: string, title: string) {
-    append({ type: 'task.edited', taskId, title });
-  },
-  /** A one-off task has one length. A repeating one can differ from day to day. */
-  resize(day: DayKey, taskId: string, lengthMin: number) {
-    const len = Math.max(MIN_LEN, Math.min(MAX_LEN, lengthMin));
-    if (isRepeating(snap.state, taskId)) append({ type: 'entry.set', day, taskId, lengthMin: len });
-    else append({ type: 'task.edited', taskId, estimateMin: len });
-  },
-  /** Fix a task at a clock time on one day, or let it flow again with null. */
-  pin(day: DayKey, taskId: string, pinMin: number | null) {
-    append({ type: 'entry.set', day, taskId, pinMin });
-  },
-  setRule(taskId: string, rule: RuleInput, from: DayKey) {
-    const set: New = { type: 'rule.set', taskId, from, days: rule.days, atMin: rule.atMin, lengthMin: rule.lengthMin };
-    // Finished for good becomes finished today: it has to come up again next time.
-    if (snap.state.tasks.get(taskId)?.done) {
-      append({ type: 'task.done', taskId, done: false }, { type: 'task.done', taskId, done: true, day: today() }, set);
-    } else append(set);
-  },
-  /** Stop repeating from tomorrow. Days already planned keep what they had. */
-  endRule(taskId: string) {
-    const rule = activeRule(snap.state, taskId);
-    if (!rule) return;
-    append({ type: 'rule.set', taskId, from: addDays(today(), 1), days: [], lengthMin: rule.lengthMin });
-  },
-  addProject(p: ProjectInput, from: DayKey) {
-    const taskId = uid();
-    const items: New[] = [
-      { type: 'task.added', taskId, title: p.title, estimateMin: p.sessionMin },
-      { type: 'project.set', taskId, budgetMin: p.budgetMin },
-    ];
-    if (p.days.length) {
-      items.push({ type: 'rule.set', taskId, from, days: p.days, atMin: p.atMin, lengthMin: p.sessionMin });
+    const known = new Set(plan.taskIds);
+    const next = [...taskIds.filter((id) => known.has(id)), ...plan.taskIds.filter((id) => !taskIds.includes(id))];
+    if (next.join() !== plan.entries.filter((e) => e.listed).map((e) => e.task.id).join()) {
+      append({ type: 'plan.set', day, taskIds: next });
     }
-    append(...items);
-  },
-  editProject(taskId: string, p: ProjectInput, from: DayKey) {
-    const task = snap.state.tasks.get(taskId);
-    const rule = activeRule(snap.state, taskId);
-    if (!task) return;
-    const items: New[] = [];
-    if (p.title !== task.title) items.push({ type: 'task.edited', taskId, title: p.title });
-    if (p.sessionMin !== task.estimateMin) items.push({ type: 'task.edited', taskId, estimateMin: p.sessionMin });
-    if (p.budgetMin !== snap.state.projects.get(taskId)?.budgetMin) {
-      items.push({ type: 'project.set', taskId, budgetMin: p.budgetMin });
-    }
-    const same =
-      rule &&
-      rule.lengthMin === p.sessionMin &&
-      rule.atMin === p.atMin &&
-      [...rule.days].sort().join() === [...p.days].sort().join();
-    if (p.days.length && !same) {
-      items.push({ type: 'rule.set', taskId, from, days: p.days, atMin: p.atMin, lengthMin: p.sessionMin });
-    } else if (!p.days.length && rule) {
-      items.push({ type: 'rule.set', taskId, from: addDays(today(), 1), days: [], lengthMin: p.sessionMin });
-    }
-    if (items.length) append(...items);
   },
   /** More hours for a project that needs them. */
   setBudget(taskId: string, budgetMin: number) {
@@ -245,13 +210,13 @@ export const actions = {
   finishProject(taskId: string) {
     const rule = activeRule(snap.state, taskId);
     const items: New[] = [{ type: 'task.done', taskId, done: true }];
-    if (rule) items.push({ type: 'rule.set', taskId, from: addDays(today(), 1), days: [], lengthMin: rule.lengthMin });
+    if (rule) items.push({ type: 'rule.set', taskId, from: addDays(today(), 1), days: [] });
     const stops = isRunning(taskId);
     if (stops) items.unshift({ type: 'stopped' });
     append(...items);
     const back: New[] = [{ type: 'task.done', taskId, done: false }];
     if (rule) {
-      back.push({ type: 'rule.set', taskId, from: addDays(today(), 1), days: rule.days, atMin: rule.atMin, lengthMin: rule.lengthMin });
+      back.push({ type: 'rule.set', taskId, from: addDays(today(), 1), days: rule.days });
     }
     offerUndo(`Finished ${snap.state.tasks.get(taskId)?.title ?? 'the project'}`, [...back, ...resume(taskId, stops)]);
   },
@@ -269,7 +234,7 @@ export const actions = {
       ]);
     }
   },
-  /** Done with the running task, whether or not its planned time is up. */
+  /** Done with the running task: for good, or for today if it repeats or is a project. */
   finish() {
     const open = snap.state.open;
     if (open?.kind === 'task' && open.taskId) actions.setDone(today(), open.taskId, true);
@@ -291,6 +256,18 @@ export const actions = {
   /** The timer was forgotten: the work really ended at `endAt`. */
   stopAt(endAt: number) {
     append({ type: 'stopped', endAt });
+  },
+  /** Correct when a logged stretch started or ended. The caller has checked it with checkEntry. */
+  editEntry(segId: string, change: { start?: number; end?: number }) {
+    append({ type: 'seg.edited', segId, ...change });
+  },
+  removeEntry(segId: string, label: string) {
+    append({ type: 'seg.edited', segId, removed: true });
+    offerUndo(`Deleted ${label}`, [{ type: 'seg.edited', segId, removed: false }]);
+  },
+  /** Write in work that was never timed. */
+  addEntry(taskId: string, start: number, end: number) {
+    append({ type: 'seg.added', taskId, start, end });
   },
   dismissError() {
     publish({ error: null });

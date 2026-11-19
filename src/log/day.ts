@@ -20,12 +20,8 @@ export function wallMin(ms: number): number {
   return d.getHours() * 60 + d.getMinutes() + d.getSeconds() / 60 + d.getMilliseconds() / 60000;
 }
 
-/** Where a new plan starts: the next quarter hour. */
-export function defaultStartMin(now: number): number {
-  return Math.min(23 * 60, Math.ceil(Math.floor(wallMin(now)) / 15) * 15);
-}
-
 export type DaySegment = {
+  id: string;
   kind: Segment['kind'];
   taskId?: string;
   start: number;
@@ -49,6 +45,7 @@ export function daySegments(state: LogState, key: DayKey, now: number): DaySegme
     if (end <= start && !(seg.end === undefined && start >= from && start < to)) continue;
     const startMin = start === from ? 0 : wallMin(start);
     out.push({
+      id: seg.id,
       kind: seg.kind,
       taskId: seg.taskId,
       start,
@@ -59,7 +56,14 @@ export function daySegments(state: LogState, key: DayKey, now: number): DaySegme
       wholeMs: segEnd - seg.start,
     });
   }
-  return out;
+  // Entries can be corrected or written in by hand, so the log is not always in order.
+  return out.sort((a, b) => a.start - b.start);
+}
+
+/** A clock time on a day, as a moment. Follows the wall clock across daylight saving. */
+export function atMinute(key: DayKey, min: number): number {
+  const [y, m, d] = key.split('-').map(Number);
+  return new Date(y, m - 1, d, Math.floor(min / 60), min % 60).getTime();
 }
 
 /** 0 (Sunday) to 6, as Date.getDay() gives it. */
@@ -88,62 +92,64 @@ export function activeRule(state: LogState, taskId: string): RuleVersion | undef
   return last?.days.length ? last : undefined;
 }
 
-/** Where a day's plan starts before anyone has set it. */
-export function defaultStart(day: DayKey, now: number): number {
-  return day === dayKey(now) ? defaultStartMin(now) : 9 * 60;
-}
-
-/** A project, or a task that has ever repeated: its length and "done" are per day. */
+/** A project, or a task that has ever repeated: it is finished a day at a time. */
 export function isRepeating(state: LogState, taskId: string): boolean {
   return state.projects.has(taskId) || state.rules.has(taskId);
 }
 
-/** One task on one day, before it is given a place on the clock. */
+/** One task on one day. */
 export type DayEntry = {
   task: Task;
-  lengthMin: number;
-  /** Fixed start, in minutes from midnight. Null: it flows after the task before it. */
-  pinMin: number | null;
   done: boolean;
   /** Here because its repeat rule says so. */
   ruled: boolean;
-  /** Named in the day's own plan. */
+  /** Named in the day's own list. */
   listed: boolean;
+  /** Left unfinished on this earlier day, so it came along to today. */
+  carriedFrom?: DayKey;
 };
 
-export type ResolvedDay = { startMin: number | null; entries: DayEntry[] };
+/** The last day whose list names each task; with `before`, the last one earlier than that day. */
+function lastListed(state: LogState, before?: DayKey): Map<string, DayKey> {
+  const last = new Map<string, DayKey>();
+  for (const [day, plan] of state.plans) {
+    if (before !== undefined && day >= before) continue;
+    for (const id of plan.taskIds) if ((last.get(id) ?? '') < day) last.set(id, day);
+  }
+  return last;
+}
 
 /**
- * What is on a day: the tasks its plan names, in that order, then the tasks
- * whose repeat rule falls on that weekday. Nothing is written when a day is
- * opened, so two devices never both add the same occurrence.
+ * What is on a day: the tasks its list names, in that order, then the tasks
+ * whose repeat rule falls on that weekday. Today also gets the one-off tasks
+ * left unfinished on an earlier day. Nothing is written when a day is opened,
+ * so two devices never both add the same occurrence.
  */
-export function resolveDay(state: LogState, day: DayKey): ResolvedDay {
+export function resolveDay(state: LogState, day: DayKey, today: DayKey): DayEntry[] {
   const plan = state.plans.get(day);
   const over = state.overrides.get(day);
   const wd = weekday(day);
   const entries: DayEntry[] = [];
   const seen = new Set<string>();
 
-  const entry = (task: Task, listed: boolean): DayEntry => {
-    const o = over?.get(task.id);
-    const rule = ruleFor(state, task.id, day);
-    const ruled = !!rule && rule.days.includes(wd);
-    return {
-      task,
-      lengthMin: o?.lengthMin ?? rule?.lengthMin ?? task.estimateMin,
-      pinMin: o?.pinMin !== undefined ? o.pinMin : ruled ? (rule.atMin ?? null) : null,
-      done: task.done || task.doneOn.has(day),
-      ruled,
-      listed,
-    };
-  };
+  const entry = (task: Task, listed: boolean): DayEntry => ({
+    task,
+    done: task.done || task.doneOn.has(day),
+    ruled: !!ruleFor(state, task.id, day)?.days.includes(wd),
+    listed,
+  });
 
+  // A one-off task that was on an earlier day too keeps saying where it came
+  // from, also once today's own list names it (adding or dragging does that).
+  const earlier = plan ? lastListed(state, day) : undefined;
   for (const id of plan?.taskIds ?? []) {
     const task = state.tasks.get(id);
     if (!task || task.removed || seen.has(id)) continue;
     seen.add(id);
-    entries.push(entry(task, true));
+    const e = entry(task, true);
+    const from = earlier!.get(id);
+    if (from && !isRepeating(state, id)) e.carriedFrom = from;
+    entries.push(e);
   }
 
   const derived: DayEntry[] = [];
@@ -153,93 +159,83 @@ export function resolveDay(state: LogState, day: DayKey): ResolvedDay {
     const e = entry(task, false);
     if (e.ruled) derived.push(e);
   }
-  derived.sort(
-    (a, b) =>
-      (ruleFor(state, a.task.id, day)?.atMin ?? Infinity) - (ruleFor(state, b.task.id, day)?.atMin ?? Infinity) ||
-      a.task.createdAt - b.task.createdAt ||
-      (a.task.id < b.task.id ? -1 : 1),
-  );
+  derived.sort((a, b) => a.task.createdAt - b.task.createdAt || (a.task.id < b.task.id ? -1 : 1));
 
-  return { startMin: plan?.startMin ?? null, entries: [...entries, ...derived] };
-}
-
-export type PlanBlock = {
-  task: Task;
-  startMin: number;
-  endMin: number;
-  lengthMin: number;
-  pinned: boolean;
-  done: boolean;
-  /** Pinned at a time that overlaps another pinned task. */
-  clash: boolean;
-  /** Clashing blocks are drawn side by side. */
-  lane: 0 | 1;
-  /** Starts after midnight, so it is not on this day at all. */
-  offDay: boolean;
-};
-
-/**
- * Give every entry a time. Pinned tasks sit where they are pinned. The rest
- * run end to end from `startMin` in list order, and one that would run into a
- * pinned task starts after it instead. Blocks come back in clock order.
- */
-export function layoutPlan(entries: readonly DayEntry[], startMin: number): PlanBlock[] {
-  const block = (e: DayEntry, at: number): PlanBlock => ({
-    task: e.task,
-    startMin: at,
-    endMin: at + e.lengthMin,
-    lengthMin: e.lengthMin,
-    pinned: e.pinMin !== null,
-    done: e.done,
-    clash: false,
-    lane: 0,
-    offDay: at >= 24 * 60,
-  });
-
-  const pinned = entries
-    .filter((e) => e.pinMin !== null)
-    .map((e) => block(e, e.pinMin!))
-    .sort((a, b) => a.startMin - b.startMin);
-  const overlap = (a: PlanBlock, b: PlanBlock) => a.startMin < b.endMin && b.startMin < a.endMin;
-  pinned.forEach((b, i) => {
-    const before = pinned.slice(0, i).filter((a) => overlap(a, b));
-    if (!before.length) return;
-    b.clash = true;
-    before.forEach((a) => (a.clash = true));
-    if (before.some((a) => a.lane === 0)) b.lane = 1;
-  });
-
-  const flowing: PlanBlock[] = [];
-  let at = startMin;
-  for (const e of entries) {
-    if (e.pinMin !== null) continue;
-    for (let hit; (hit = pinned.find((p) => p.startMin < at + e.lengthMin && p.endMin > at)); ) at = hit.endMin;
-    flowing.push(block(e, at));
-    at += e.lengthMin;
+  const carried: DayEntry[] = [];
+  if (day === today) {
+    for (const [id, from] of lastListed(state)) {
+      const task = state.tasks.get(id);
+      if (!task || task.removed || seen.has(id) || from >= today || isRepeating(state, id)) continue;
+      // Finished on an earlier day: it stays there. Finished today: it shows as done today.
+      if (task.done && (task.doneAt === undefined || dayKey(task.doneAt) !== today)) continue;
+      if (takenOff(state, id, from, today)) continue;
+      carried.push({ ...entry(task, false), carriedFrom: from });
+    }
+    // Oldest day first, and within a day the order they had on it.
+    const place = (e: DayEntry) => state.plans.get(e.carriedFrom!)!.taskIds.indexOf(e.task.id);
+    carried.sort((a, b) => (a.carriedFrom! < b.carriedFrom! ? -1 : a.carriedFrom! > b.carriedFrom! ? 1 : place(a) - place(b)));
   }
 
-  // Stable: at the same minute, a pinned task comes first.
-  return [...pinned, ...flowing].sort((a, b) => a.startMin - b.startMin);
+  return [...entries, ...derived, ...carried];
 }
 
-export function planDay(state: LogState, day: DayKey, fallbackStart: number): PlanBlock[] {
-  const { startMin, entries } = resolveDay(state, day);
-  return layoutPlan(entries, startMin ?? fallbackStart);
+/** Was a carried task taken off some day after the one it was last listed on? */
+function takenOff(state: LogState, taskId: string, from: DayKey, today: DayKey): boolean {
+  for (const [day, over] of state.overrides) {
+    if (day > from && day <= today && over.get(taskId)?.skip) return true;
+  }
+  return false;
+}
+
+/** Tasks that are on no day at all and not finished: somewhere to find them again. */
+export function looseTasks(state: LogState, today: DayKey): Task[] {
+  const listed = lastListed(state);
+  const out: Task[] = [];
+  for (const task of state.tasks.values()) {
+    if (task.removed || task.done || isRepeating(state, task.id)) continue;
+    const from = listed.get(task.id);
+    if (from === undefined || (from < today && takenOff(state, task.id, from, today))) out.push(task);
+  }
+  return out;
 }
 
 /**
- * Tasks left unfinished on the last day that had a plan, up to a week back,
- * that are not on today yet. Repeating tasks come back by themselves.
+ * Times are typed to the minute and logged to the millisecond. An edge that
+ * lands less than a minute inside a neighbour is meant to touch it.
  */
-export function carryOver(state: LogState, today: DayKey): { from: DayKey; tasks: Task[] } | null {
-  for (let i = 1; i <= 7; i++) {
-    const from = addDays(today, -i);
-    if (!state.plans.has(from)) continue;
-    const onToday = new Set(resolveDay(state, today).entries.map((e) => e.task.id));
-    const tasks = resolveDay(state, from)
-      .entries.filter((e) => e.listed && !e.done && !isRepeating(state, e.task.id) && !onToday.has(e.task.id))
-      .map((e) => e.task);
-    return tasks.length ? { from, tasks } : null;
+export function snapEntry(
+  state: LogState,
+  segId: string | null,
+  start: number,
+  end: number | undefined,
+): { start: number; end: number | undefined } {
+  for (const seg of state.segments) {
+    if (seg.id === segId) continue;
+    if (seg.end !== undefined && start < seg.end && seg.end - start < 60000) start = seg.end;
+    if (end !== undefined && end > seg.start && end - seg.start < 60000) end = seg.start;
+  }
+  return { start, end };
+}
+
+export type EntryProblem = { kind: 'empty' | 'future' } | { kind: 'overlap'; with: Segment };
+
+/**
+ * Can a logged stretch run from `start` to `end`? `segId` is the one being
+ * corrected, or null for a new one. An open stretch has no end to check.
+ */
+export function checkEntry(
+  state: LogState,
+  segId: string | null,
+  start: number,
+  end: number | undefined,
+  now: number,
+): EntryProblem | null {
+  if (start > now || (end !== undefined && end > now)) return { kind: 'future' };
+  if (end !== undefined && end <= start) return { kind: 'empty' };
+  const until = end ?? now;
+  for (const seg of state.segments) {
+    if (seg.id === segId) continue;
+    if (start < (seg.end ?? now) && seg.start < until) return { kind: 'overlap', with: seg };
   }
   return null;
 }

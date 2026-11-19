@@ -1,15 +1,15 @@
 import { useEffect, useState } from 'react';
-import { addDays, dayKey, daySegments, dayStats, defaultStart, planDay, resolveDay } from '../log/day';
+import { addDays, dayKey, daySegments, dayStats, resolveDay } from '../log/day';
 import type { DayKey } from '../log/types';
 import { applyUpdate, useUpdateWaiting } from '../pwa/register';
 import { actions, useLog } from '../store/store';
 import { DataDialog } from './DataDialog';
 import { Dock } from './Dock';
 import { dayWords, dur } from './format';
-import { PlanPanel } from './PlanPanel';
+import { DayLog } from './DayLog';
 import { StalePrompt } from './StalePrompt';
 import { useStale } from './useStale';
-import { Timeline } from './Timeline';
+import { TaskList } from './TaskList';
 
 function useNow(): number {
   const [now, setNow] = useState(() => Date.now());
@@ -29,7 +29,6 @@ export function App() {
   const { ready, state, error, count, undo } = useLog();
   const now = useNow();
   const updateWaiting = useUpdateWaiting();
-  const [planOpen, setPlanOpen] = useState(false);
   const [dataOpen, setDataOpen] = useState(false);
 
   // Null follows today, so the view rolls over at midnight by itself.
@@ -38,8 +37,7 @@ export function App() {
   const today = dayKey(now);
   const day = viewDay ?? today;
   const isToday = day === today;
-  const startMin = resolveDay(state, day).startMin ?? defaultStart(day, now);
-  const blocks = planDay(state, day, startMin);
+  const entries = resolveDay(state, day, today);
   const segs = daySegments(state, day, now);
   const stats = dayStats(segs);
   // The dock always talks about now, whatever day is on screen.
@@ -49,12 +47,11 @@ export function App() {
   // Is the running timer one that was forgotten?
   const runningId = state.open?.kind === 'task' ? state.open.taskId : undefined;
   const running = runningId ? state.tasks.get(runningId) : undefined;
-  const todayBlocks = isToday ? blocks : planDay(state, today, defaultStart(today, now));
   const { stale, stillWorking } = useStale(
     state,
     now,
     ready,
-    running && (todayBlocks.find((b) => b.task.id === running.id)?.lengthMin ?? running.estimateMin),
+    running?.estimateMin ?? undefined,
     running && (todayStats.perTask.get(running.id) ?? 0),
   );
   const go = (d: DayKey) => setViewDay(d === today ? null : d);
@@ -80,9 +77,6 @@ export function App() {
           </button>
         </div>
         <div className="top-actions">
-          <button className="btn plan-toggle" onClick={() => setPlanOpen(true)}>
-            Plan
-          </button>
           <button className="btn" onClick={() => setDataOpen(true)}>
             Data
           </button>
@@ -146,29 +140,16 @@ export function App() {
       )}
 
       <main className="day">
-        <Timeline
-          state={state}
-          blocks={blocks}
-          segs={segs}
-          perTask={stats.perTask}
-          now={now}
-          day={day}
-          label={isToday ? 'Today' : `${weekday} ${date}`}
-          isToday={isToday}
-          past={day < today}
-          onPlan={() => setPlanOpen(true)}
-        />
-        <PlanPanel
+        <TaskList
           state={state}
           day={day}
           today={today}
-          blocks={blocks}
-          startMin={startMin}
-          perTask={stats.perTask}
+          dayName={isToday ? 'today' : weekday}
           now={now}
-          open={planOpen}
-          onClose={() => setPlanOpen(false)}
+          entries={entries}
+          perTask={stats.perTask}
         />
+        <DayLog state={state} day={day} today={today} now={now} segs={segs} />
       </main>
 
       {undo && (

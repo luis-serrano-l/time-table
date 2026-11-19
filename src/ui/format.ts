@@ -26,6 +26,12 @@ export function hhmm(min: number): string {
   return `${p(Math.floor(m / 60) % 24)}:${p(m % 60)}`;
 }
 
+/** The wall-clock time of a moment: "09:30" */
+export function timeOf(ms: number): string {
+  const d = new Date(ms);
+  return hhmm(d.getHours() * 60 + d.getMinutes());
+}
+
 export function parseHhmm(v: string): number | null {
   const m = /^(\d{1,2}):(\d{2})$/.exec(v);
   if (!m) return null;

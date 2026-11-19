@@ -1,8 +1,8 @@
 # Time-table
 
-Plan the day, then log where it actually goes, one tap at a time. The plan and
-what happened sit side by side on the same timeline, so drift is visible
-without opening a report.
+Put tasks on a day, tap one to start it, and the app writes down when you
+did it. You say what belongs to the day, never at what time: the clock only
+records what actually happened.
 
 **Open it:** https://luis-serrano-l.github.io/time-table/
 
@@ -10,8 +10,8 @@ It is a web app that installs like a native one (a PWA), works offline, and
 keeps everything on your device. There is no account and no server.
 
 <p>
-  <img src="docs/day-phone.png" alt="The day on a phone: planned blocks on the left, logged time on the right, the running task pinned at the bottom" width="260">
-  <img src="docs/day-desktop.png" alt="The same day on a wide screen, with the plan as a side column" width="560">
+  <img src="docs/day-phone.png" alt="The day on a phone: the task that is running on top, the tasks still to do under it, and the bar with Pause and Done for today at the bottom" width="260">
+  <img src="docs/day-desktop.png" alt="The same day on a wide screen: tasks on the left, the log of what happened and when on the right" width="560">
 </p>
 
 ## The idea
@@ -21,35 +21,40 @@ to you. Nothing here is tracked automatically: every entry is a tap you made.
 The job of the app is to make that tap cost nothing.
 
 The idea comes from [Singla](https://singla.day/). This is an independent
-take on it, built from scratch around one change: the day is a timetable, and
-planning, logging and looking back all happen on it.
+take on it, built from scratch around one screen: the day's tasks, and under
+them the timetable that writes itself as you work.
 
 ## How to use it
 
 | You want to | Do this |
 |---|---|
-| Plan the day | **Plan**, add tasks in the order you mean to do them, set a length for each (from 5 minutes). They are laid out end to end from the start time. |
-| Fix a task to a time | The diamond on its row, then set the time. The other tasks flow around it. |
-| Plan another day | The arrows beside the date. Days already over can be read, not changed. |
-| Start working | Tap a planned block. |
-| Switch task | Tap another block. The first one stops by itself: only one thing runs at a time. |
-| Pause | Tap the running block again, or **Pause**. |
-| Finish early | **Finish**, next to Pause. The timer stops and the task is marked finished. |
+| Put a task on the day | Type its name under the tasks and press **Add**. A name is all it needs. |
+| Start working | Tap the task. The time is recorded from that moment. |
+| Switch task | Tap another one. The first stops by itself: only one thing runs at a time. |
+| Pause | Tap the running task again, or **Pause**. |
+| Finish | **Finish**, next to Pause. The timer stops and the task moves under **Done**. |
 | Log an interruption | **Interruption**. The task you were on is set aside; **Back to work** resumes it. |
-| Do something unplanned | **+**, type a name, and it is already running. |
-| Repeat a task | The circular arrow on its row: choose the days, a time and a length. It appears on those days by itself, and each day can still have its own time and length. |
-| Work off a project | **New project** in the plan: a name, a total of hours, and optionally the days and length of its sessions. Only time you log uses up the hours. When they run out, **Finish project** or **Add time**. |
-| Take something back | **Undo**, shown for a few seconds after you delete, take off or finish a task. |
-| Pick up yesterday's leftovers | The box at the top of today's plan lists what was not finished: **Add all**, or bring tasks back one at a time. |
+| Start something new right now | **+**, type a name, and it is on today and already running. |
+| Change the order | Drag a task by its grip, or focus the grip and use the arrow keys. |
+| Plan another day | The arrows beside the date. A day to come can be filled but nothing on it can be started; a day gone by shows what was on it and what was logged. |
+| Give a task an estimate | **Options** when adding, or the three dots on the task. It then shows "12m of 30m". |
+| Repeat a task | In the same place, choose the days. It comes up on those days by itself, and **Done for today** ends it for that day only. |
+| Work off a project | **Options**, tick *It is a project*, and give it a total of hours. Put it on the days you work on it, or let it repeat. Only time you log uses up the hours. When they run out, **Finish project** or **Add time**. |
+| Take a task off the day | The three dots, then **Take off today**. It waits under **Not on today**. |
+| Correct the log | Tap an entry under **What happened** to change when it started or ended, or delete it. **Add entry** writes in work you forgot to time. Entries cannot overlap. |
+| Take something back | **Undo**, shown for a few seconds after you delete, take off or finish. |
 
-If a timer runs far past its planned length, or is still running when you
+A task you did not finish is on today the next morning, marked with the day it
+came from. Repeating tasks and projects are not carried: they come up on their
+own days, and wait under **Not on today** in between.
+
+If a timer runs far past the task's estimate, or is still running when you
 come back after an hour or more, the app asks whether you are still on it.
 You can say when the work really ended. It never stops a timer by itself.
 
-On the timeline, a dashed outline is a planned block and a solid bar is time
-you logged. A hatched bar is an interruption. A gold edge marks a deep
-stretch: 25 minutes or more on one task without a break. The header counts
-logged time, task switches, interruptions and deep stretches for the day.
+In the log, a "deep" mark is 25 minutes or more on one task without a break.
+The header counts logged time, task switches, interruptions and deep stretches
+for the day.
 
 ### Install it
 
@@ -69,18 +74,21 @@ logged time, task switches, interruptions and deep stretches for the day.
 
 ## How it works
 
-The log is an append-only list of events (task added, plan set, started,
-stopped, interruption started and ended, repeat rule set, and so on).
+The log is an append-only list of events (task added, day's tasks set,
+started, stopped, interruption started and ended, repeat rule set, entry
+corrected, and so on).
 Everything on screen is computed from it. That makes a running timer just
 "started at this moment", so it survives the app being closed, and it makes
 a backup one file. A repeating task is a rule, not a row per day: its
 occurrences are worked out when a day is shown, so merging two devices never
-doubles them. Undo adds entries that reverse a change; nothing is removed.
+doubles them. A task carried over from an earlier day is worked out the same
+way. Undo, and a correction to the log, add entries that reverse or amend a
+change; nothing is removed.
 
 ```
 src/log/     event types and the pure functions that turn events into the day
 src/store/   IndexedDB persistence, export, import, merge
-src/ui/      timeline, plan, dock, data dialog
+src/ui/      task cards, log, dock, dialogs
 src/pwa/     service worker registration and the "new version" prompt
 e2e/         browser check of the whole flow against the production build
 ```
@@ -112,7 +120,8 @@ Actions*. The included workflow tests, builds and publishes on every push to
 - [x] Plan and log on one timeline, interruptions, export and import, offline
 - [x] Tasks from 5 minutes, pinned times, other days, repeating tasks, projects with a total of hours
 - [x] Undo, unfinished tasks roll over, catch a forgotten timer
-- [ ] Evening review, fill gaps and trim logged time after the fact
+- [x] Tasks belong to a day, not a time: tap to start, drag to reorder, correct the log by hand
+- [ ] Evening review
 - [ ] Insights: best hours of the day, how far estimates are off, interruption patterns, trends
 - [ ] Icon badge and notification buttons while a timer runs, keyboard shortcuts, automatic backups
 

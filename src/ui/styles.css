@@ -328,299 +328,366 @@ ul {
   color: var(--ink);
 }
 
-.carry {
-  margin-bottom: 14px;
-  padding: 10px 12px;
-  border: 1.5px solid var(--ink);
-  border-radius: 12px;
+.day {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px 16px 24px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 28px;
 }
 
-.carry-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
+.empty {
+  padding: 6px 2px 12px;
+  color: var(--ink-2);
+  font-size: 0.95rem;
+  max-width: 44ch;
 }
 
-.carry-head strong {
-  flex: 1 1 100%;
-  font-weight: 700;
+/* ---------- task cards ---------- */
+
+/* Room for the running card's heavier edge inside a scrolling box. */
+.tasks {
+  padding: 2px;
 }
 
-.carry li {
-  display: flex;
-  align-items: center;
+.cards {
+  display: grid;
   gap: 8px;
-  padding-top: 6px;
 }
 
-.carry .btn {
+.card {
+  position: relative;
+  border: 1.5px solid var(--rule);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+/* Cards make room only while one is being dragged, so a drop does not bounce. */
+.cards.is-sorting .card {
+  transition: transform 0.16s;
+}
+
+.card-row {
+  display: flex;
+  align-items: center;
+}
+
+.card-main {
+  flex: 1;
+  min-width: 0;
+  min-height: 64px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 6px 8px 8px;
+  border: 0;
+  border-radius: 12px;
+  background: none;
+  text-align: left;
+}
+
+/* The start mark is the task's colour, big enough to hit without aiming. */
+.card-mark {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--hue);
+  color: var(--on-hue);
+}
+
+.card-mark svg {
+  width: 22px;
+  height: 22px;
+  fill: currentColor;
+}
+
+.card-mark .stroke {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.card-text {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+}
+
+.card-text strong {
+  font-size: 1.08rem;
+  font-weight: 700;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.card-text small {
+  color: var(--ink-2);
+  font-size: 0.84rem;
+}
+
+.card-text small.is-over {
+  color: var(--now);
+  font-weight: 650;
+}
+
+.card-main time {
+  flex: none;
+  padding-right: 4px;
+  font-size: 1.5rem;
+  font-weight: 750;
+  font-stretch: 75%;
+  line-height: 1;
+}
+
+.card.is-running {
+  border-color: var(--ink);
+  background: color-mix(in srgb, var(--hue) 20%, var(--surface));
+  box-shadow: 0 0 0 1.5px var(--ink);
+}
+
+.card.is-done .card-mark {
+  background: color-mix(in srgb, var(--hue) 30%, var(--paper));
+  color: var(--ink-2);
+}
+
+.card.is-done .card-text strong {
+  font-weight: 500;
+  color: var(--ink-2);
+  text-decoration: line-through;
+}
+
+.card.is-lifted {
+  border-color: var(--ink);
+  box-shadow: 0 10px 24px rgb(8 16 24 / 0.22);
+}
+
+.card-icon {
+  flex: none;
+  width: 40px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  color: var(--ink-2);
+}
+
+.card-icon:last-child {
+  margin-right: 4px;
+}
+
+.card-icon svg {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+}
+
+.card-grip {
+  cursor: grab;
+  touch-action: none;
+}
+
+.is-lifted .card-grip {
+  cursor: grabbing;
+}
+
+.card-tool {
+  flex: none;
   min-height: 34px;
   padding: 0 10px;
   font-size: 0.82rem;
 }
 
-.day {
+.card-project {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  padding: 0 12px 12px 68px;
+}
+
+.card-project .bar {
   flex: 1;
-  min-height: 0;
-  display: grid;
-  grid-template-rows: minmax(0, 1fr);
-  grid-template-columns: minmax(0, 1fr);
+  min-width: 80px;
 }
 
-/* ---------- timeline ---------- */
-
-.timeline {
-  min-height: 0;
-  overflow-y: auto;
-  padding: 0 16px 24px;
-  scrollbar-width: thin;
-}
-
-.tl-head {
-  position: sticky;
-  top: 0;
-  z-index: 4;
-  display: grid;
-  grid-template-columns: var(--ruler) 58fr 42fr;
-  gap: 8px;
-  padding: 6px 0;
-  background: var(--paper);
-  border-bottom: 1.5px solid var(--ink);
-  font-size: 0.82rem;
+.card-project small {
+  font-size: 0.84rem;
   font-weight: 650;
 }
 
-.tl-body {
-  position: relative;
-  margin-top: 14px;
+.add {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
 }
 
-.tl-hour {
-  position: absolute;
-  left: 0;
-  right: 0;
+.add input {
+  flex: 1;
+  min-width: 0;
+  min-height: 48px;
+  background: var(--surface);
+}
+
+.add .btn {
+  min-height: 48px;
+}
+
+/* A section that opens on a tap: Done, and the tasks not on this day. */
+.fold {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  margin-top: 10px;
+  padding: 0 2px;
+  border: 0;
+  background: none;
+  font-weight: 650;
+  color: var(--ink-2);
+}
+
+.fold::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 0.15s;
+}
+
+.fold[aria-expanded='true']::before {
+  transform: rotate(45deg);
+}
+
+.fold span {
+  font-weight: 400;
+}
+
+.other li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 2px;
+}
+
+.other-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.other-title small {
+  display: block;
+  color: var(--ink-2);
+  font-size: 0.78rem;
+}
+
+.other .btn {
+  min-height: 34px;
+  padding: 0 10px;
+  font-size: 0.82rem;
+}
+
+/* ---------- log ---------- */
+
+.log-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 6px;
+  border-bottom: 1.5px solid var(--ink);
+}
+
+.log-head h2 {
+  font-size: 1.15rem;
+  font-weight: 750;
+  font-stretch: 85%;
+}
+
+.log-head .btn {
+  min-height: 34px;
+  padding: 0 12px;
+  font-size: 0.84rem;
+}
+
+.log .empty {
+  padding-top: 12px;
+}
+
+.log-list li + li {
   border-top: 1px solid var(--rule);
 }
 
-.tl-hour span {
-  position: absolute;
-  top: -0.62em;
-  left: 0;
-  padding-right: 6px;
-  background: var(--paper);
-  font-size: 1.25rem;
-  font-weight: 700;
-  font-stretch: 75%;
-  line-height: 1;
-  color: var(--ink-2);
-}
-
-.tl-col {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-}
-
-.tl-plan {
-  left: var(--ruler);
-  width: calc((100% - var(--ruler) - 16px) * 0.58 + 8px);
-  padding-right: 8px;
-}
-
-.tl-actual {
-  right: 0;
-  width: calc((100% - var(--ruler) - 16px) * 0.42);
-}
-
-/* A planned block is an empty slot: an outline waiting to be filled. */
-.slot {
-  position: absolute;
-  left: 8px;
-  right: 8px;
+.log-row {
+  width: 100%;
+  min-height: 48px;
   display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-  gap: 1px;
-  padding: 3px 8px;
-  overflow: hidden;
-  text-align: left;
-  border: 1.5px dashed var(--hue);
-  border-left: 5px solid var(--hue);
-  border-radius: 4px 10px 10px 4px;
-  background: color-mix(in srgb, var(--hue) 12%, var(--paper));
-}
-
-.slot.is-running {
-  border-style: solid;
-  background: color-mix(in srgb, var(--hue) 30%, var(--paper));
-  box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--hue);
-}
-
-.slot.is-done {
-  opacity: 0.55;
-}
-
-.slot.is-done .slot-title {
-  text-decoration: line-through;
-}
-
-.slot-title {
-  font-weight: 650;
-  font-size: 0.95rem;
-  line-height: 1.2;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.slot-meta {
-  font-size: 0.78rem;
-  color: var(--ink-2);
-  white-space: nowrap;
-}
-
-.slot-meta.is-over {
-  color: var(--now);
-  font-weight: 650;
-}
-
-/* Pinned to a clock time: a full outline, and a mark before the name. */
-.slot.is-pinned {
-  border-style: solid;
-  border-left-width: 5px;
-}
-
-.slot.is-pinned .slot-title::before {
-  content: '◆ ';
-  font-size: 0.7em;
-  vertical-align: 0.15em;
-}
-
-.slot.is-clash {
-  border-color: var(--now);
-}
-
-.slot.is-clash.lane-0 {
-  right: 50%;
-}
-
-.slot.is-clash.lane-1 {
-  left: calc(50% + 4px);
-}
-
-div.slot,
-div.seg {
-  cursor: default;
-}
-
-.slot.is-compact {
-  flex-direction: row;
   align-items: center;
-  gap: 6px;
-  padding: 0 8px;
-}
-
-.slot.is-compact .slot-title {
-  flex: 1 1 auto;
-  min-width: 0;
-  font-size: 0.86rem;
-  line-height: 1;
-}
-
-.slot.is-compact .slot-meta {
-  font-size: 0.72rem;
-  line-height: 1;
-}
-
-/* What happened is solid. */
-.seg {
-  position: absolute;
-  left: 0;
-  right: 0;
-  padding: 0 8px;
-  overflow: hidden;
+  gap: 10px;
+  padding: 6px 2px;
   border: 0;
-  border-radius: 3px;
-  background: var(--hue);
-  color: var(--on-hue);
-  font-size: 0.78rem;
-  font-weight: 650;
-  line-height: 20px;
+  background: none;
   text-align: left;
+}
+
+.log-time {
+  flex: none;
+  width: 8.2em;
+  font-weight: 650;
   white-space: nowrap;
 }
 
-.seg span {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.log-time i {
+  margin: 0 0.35em;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 0.84rem;
+  color: var(--ink-2);
 }
 
-.seg.is-deep {
-  box-shadow: inset 5px 0 0 var(--deep), inset 6.5px 0 0 var(--on-hue);
-  padding-left: 13px;
+.log-what {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
-.seg.is-running {
-  border-radius: 3px 3px 0 0;
+.log-row.is-int .log-what {
+  color: var(--now);
 }
 
-.seg-int {
-  background: repeating-linear-gradient(
-    -45deg,
-    var(--now) 0 3px,
-    color-mix(in srgb, var(--now) 25%, var(--paper)) 3px 7px
-  );
-  color: var(--ink);
-}
-
-.seg-int span {
-  display: inline-block;
-  padding: 0 4px;
-  background: var(--paper);
-  border-radius: 3px;
-  line-height: 16px;
-}
-
-.tl-now {
-  position: absolute;
-  left: 0;
-  right: 0;
-  z-index: 3;
-  height: 2px;
-  background: var(--now);
-  pointer-events: none;
-}
-
-.tl-now span {
-  position: absolute;
-  left: 0;
-  top: -11px;
-  padding: 2px 6px;
-  border-radius: 999px;
-  background: var(--now);
-  color: #fff;
-  font-size: 0.78rem;
+.log-row.is-running .log-what {
   font-weight: 700;
-  line-height: 1.3;
 }
 
-@media (prefers-color-scheme: dark) {
-  .tl-now span {
-    color: #1b0410;
-  }
+.log-deep {
+  flex: none;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--deep);
+  color: var(--on-hue);
+  font-size: 0.74rem;
+  font-weight: 700;
 }
 
-.tl-empty {
-  position: absolute;
-  left: var(--ruler);
-  right: 0;
-  padding-left: 8px;
-  display: grid;
-  gap: 10px;
-  justify-items: start;
+.log-dur {
+  flex: none;
+  min-width: 4.2em;
+  text-align: right;
   color: var(--ink-2);
 }
 
@@ -739,264 +806,8 @@ select.length {
   }
 }
 
-/* ---------- plan ---------- */
-
-.scrim {
-  position: fixed;
-  inset: 0;
-  z-index: 9;
-  background: rgb(8 16 24 / 0.45);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.2s;
-}
-
-.scrim.is-open {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.plan {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 10;
-  max-height: 86dvh;
-  overflow-y: auto;
-  padding: 16px 16px max(16px, env(safe-area-inset-bottom));
-  background: var(--surface);
-  border-top: 1.5px solid var(--ink);
-  border-radius: 18px 18px 0 0;
-  transform: translateY(100%);
-  visibility: hidden;
-  transition: transform 0.22s ease-out, visibility 0.22s;
-}
-
-.plan.is-open {
-  transform: none;
-  visibility: visible;
-}
-
-.plan-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 12px;
-}
-
-.plan h2,
-.dialog h2 {
-  font-size: 1.35rem;
-  font-weight: 750;
-  font-stretch: 80%;
-}
-
-.plan h3 {
-  margin: 22px 0 8px;
-  font-size: 0.95rem;
-  font-weight: 650;
-  color: var(--ink-2);
-}
-
-.plan-start {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 10px;
-  font-size: 0.92rem;
-  font-weight: 600;
-}
-
-.plan-start span {
-  font-weight: 400;
-  color: var(--ink-2);
-}
-
-.plan-hint {
-  margin-top: 14px;
-  color: var(--ink-2);
-  max-width: 34ch;
-}
-
-.plan-list {
-  margin-top: 12px;
-}
-
-.plan-list li {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 4px 10px;
-  padding: 10px 0;
-  border-top: 1px solid var(--rule);
-}
-
-.plan-list li.is-done .plan-title {
-  text-decoration: line-through;
-  color: var(--ink-2);
-}
-
-.plan-item {
-  display: grid;
-  min-width: 0;
-}
-
-.plan-item small {
-  color: var(--ink-2);
-  font-size: 0.78rem;
-  padding-left: 1px;
-}
-
-input.plan-title {
-  min-height: 30px;
-  padding: 0;
-  border: 0;
-  border-radius: 4px;
-  background: none;
-  font-weight: 650;
-  text-overflow: ellipsis;
-}
-
-.plan-item small .warn {
-  color: var(--now);
-  font-weight: 650;
-}
-
-input.pin-time {
-  min-height: 26px;
-  padding: 0 4px;
-  border-radius: 6px;
-  font-size: 0.8rem;
-  font-weight: 650;
-  color: var(--ink);
-}
-
-.plan-length {
-  font-size: 0.88rem;
-  font-weight: 650;
-}
-
-.stepper {
-  display: flex;
-  align-items: center;
-  border: 1.5px solid var(--rule);
-  border-radius: 999px;
-}
-
-.stepper output {
-  min-width: 4.6ch;
-  text-align: center;
-  font-size: 0.88rem;
-  font-weight: 650;
-}
-
-.stepper button,
-.plan-tools button {
-  width: 36px;
-  height: 36px;
-  border: 0;
-  border-radius: 999px;
-  background: none;
-  font-size: 1.05rem;
-}
-
-.stepper button:disabled,
-.plan-tools button:disabled {
-  opacity: 0.3;
-  cursor: default;
-}
-
-.plan-tools {
-  grid-column: 2 / -1;
-  display: flex;
-  justify-content: flex-end;
-  gap: 2px;
-  color: var(--ink-2);
-}
-
-.plan-tools button[aria-pressed='true'] {
-  background: var(--ink);
-  color: var(--paper);
-}
-
-.plan-add {
-  display: flex;
-  gap: 8px;
-  padding-top: 12px;
-  border-top: 1px solid var(--rule);
-}
-
-.plan-add input {
-  flex: 1;
-  min-width: 0;
-}
-
-.plan-sub {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin: 22px 0 8px;
-}
-
-.plan .plan-sub h3 {
-  margin: 0;
-}
-
-.plan-sub .btn,
-.project-list .btn {
-  min-height: 34px;
-  padding: 0 10px;
-  font-size: 0.82rem;
-}
-
-.project-list li {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: start;
-  gap: 6px 10px;
-  padding: 10px 0;
-  border-top: 1px solid var(--rule);
-}
-
-.project-list .dot {
-  margin-top: 5px;
-}
-
-.project-text {
-  display: grid;
-  min-width: 0;
-}
-
-.project-text strong {
-  font-weight: 650;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.project-text small {
-  color: var(--ink-2);
-  font-size: 0.78rem;
-}
-
-.project-text small:first-of-type {
-  color: var(--ink);
-  font-size: 0.86rem;
-  font-weight: 600;
-}
-
-.project-tools {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 6px;
-}
-
 /* Hours used, as a filled length of the project's colour. */
 .bar {
-  grid-column: 2 / -1;
   height: 8px;
   border-radius: 3px;
   background: color-mix(in srgb, var(--hue) 18%, var(--paper));
@@ -1014,7 +825,7 @@ input.pin-time {
 }
 
 .project-spent {
-  grid-column: 2 / -1;
+  flex: 1 1 100%;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -1076,56 +887,6 @@ input.hours {
   height: 18px;
   padding: 0;
   accent-color: var(--ink);
-}
-
-.later-list li {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 0;
-}
-
-.later-title {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.later-title small {
-  display: block;
-  color: var(--ink-2);
-  font-size: 0.78rem;
-}
-
-.later-list .btn {
-  min-height: 34px;
-  padding: 0 10px;
-  font-size: 0.82rem;
-}
-
-@media (min-width: 960px) {
-  .day {
-    grid-template-columns: minmax(0, 1fr) 400px;
-  }
-  .plan {
-    position: static;
-    max-height: none;
-    min-height: 0;
-    transform: none;
-    visibility: visible;
-    transition: none;
-    border: 0;
-    border-left: 1.5px solid var(--ink);
-    border-radius: 0;
-    background: none;
-  }
-  .scrim,
-  .plan-toggle,
-  .plan-close {
-    display: none;
-  }
 }
 
 /* ---------- dialog ---------- */
@@ -1208,9 +969,42 @@ input.hours {
   font-weight: 600;
 }
 
+.fields.stack select {
+  max-width: 62%;
+}
+
+.fields.stack label > span {
+  color: var(--ink-2);
+  font-weight: 400;
+}
+
+.dialog .notice {
+  margin-top: 14px;
+}
+
+@media (min-width: 960px) {
+  .day {
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    align-content: stretch;
+    gap: 40px;
+    overflow: hidden;
+    padding-bottom: 0;
+  }
+  .tasks,
+  .log {
+    min-height: 0;
+    overflow-y: auto;
+    padding-bottom: 24px;
+  }
+  .log {
+    padding-top: 2px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .plan,
-  .scrim {
+  .cards.is-sorting .card,
+  .fold::before {
     transition: none;
   }
 }
