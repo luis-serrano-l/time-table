@@ -49,7 +49,7 @@ export function Dock({ state, now, perTask }: Props) {
   }
 
   return (
-    <div className={`dock${open ? ' is-live' : ''}${open?.kind === 'interruption' ? ' is-int' : ''}`}>
+    <div className={`dock${open ? ' is-live' : ' is-idle'}${open?.kind === 'interruption' ? ' is-int' : ''}`}>
       <div className="dock-now" aria-live="off">
         {open?.kind === 'task' && task && (
           <>
@@ -92,13 +92,15 @@ export function Dock({ state, now, perTask }: Props) {
             {task && isRepeating(state, task.id) ? 'Done for today' : 'Finish'}
           </button>
         )}
-        {open?.kind === 'interruption' ? (
-          <button className="btn btn-solid" onClick={actions.endInterruption}>
-            {parked ? 'Back to work' : 'End interruption'}
-          </button>
-        ) : (
+        {/* An interruption breaks into a task, so it is only offered while one runs. */}
+        {open?.kind === 'task' && (
           <button className="btn btn-int" onClick={actions.interrupt}>
             Interruption
+          </button>
+        )}
+        {open?.kind === 'interruption' && (
+          <button className="btn btn-solid" onClick={actions.endInterruption}>
+            {parked ? 'Back to work' : 'End interruption'}
           </button>
         )}
         <button className="btn btn-plus" onClick={() => setAdding(true)} aria-label="Start something new right now">

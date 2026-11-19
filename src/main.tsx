@@ -1,4 +1,4 @@
-import '@fontsource-variable/bricolage-grotesque/wdth.css';
+import '@fontsource-variable/figtree/wght.css';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { startUpdates } from './pwa/register';

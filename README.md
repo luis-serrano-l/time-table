@@ -33,7 +33,7 @@ them the timetable that writes itself as you work.
 | Switch task | Tap another one. The first stops by itself: only one thing runs at a time. |
 | Pause | Tap the running task again, or **Pause**. |
 | Finish | **Finish**, next to Pause. The timer stops and the task moves under **Done**. |
-| Log an interruption | **Interruption**. The task you were on is set aside; **Back to work** resumes it. |
+| Log an interruption | **Interruption**, shown while a task is running. The task you were on is set aside; **Back to work** resumes it. |
 | Start something new right now | **+**, type a name, and it is on today and already running. |
 | Change the order | Drag a task by its grip, or focus the grip and use the arrow keys. |
 | Plan another day | The arrows beside the date. A day to come can be filled but nothing on it can be started; a day gone by shows what was on it and what was logged. |

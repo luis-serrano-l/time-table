@@ -17,9 +17,42 @@
   --h5: #c08fe0;
   --h6: #ee8a5b;
   --h7: #5bb8e0;
-  --font: 'Bricolage Grotesque Variable', system-ui, sans-serif;
-  --ruler: 44px;
-  --dock-h: 76px;
+  --font: 'Figtree Variable', system-ui, sans-serif;
+
+  /* Every size comes from the golden ratio, phi = 1.618.
+     Space: each step is the one before times phi. */
+  --s1: 4px;
+  --s2: 6px;
+  --s3: 10px;
+  --s4: 16px;
+  --s5: 26px;
+  --s6: 42px;
+  --s7: 68px;
+
+  /* Type: steps of the fourth root of phi around 1rem, so two steps apart is
+     the square root and four steps apart is phi itself. */
+  --t-xs: 0.786rem;
+  --t-sm: 0.887rem;
+  --t-0: 1rem;
+  --t-1: 1.128rem;
+  --t-2: 1.272rem;
+  --t-3: 1.618rem;
+  --t-4: 2.618rem;
+
+  /* Things to tap: steps of the square root of phi, so a 42px mark sits in a
+     68px card at exactly phi. */
+  --c-sm: 33px;
+  --c: 42px;
+  --c-lg: 53px;
+  --c-xl: 68px;
+
+  --r1: 4px;
+  --r2: 10px;
+  --r3: 16px;
+  --line: 1.5px;
+  --lh: 1.382;
+  --lh-prose: 1.618;
+  --dock-h: var(--c-xl);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -49,8 +82,9 @@ body,
 body {
   background: var(--paper);
   color: var(--ink);
-  font: 400 16px/1.4 var(--font);
+  font: 400 16px / var(--lh) var(--font);
   font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior: none;
 }
@@ -95,6 +129,10 @@ ul {
   list-style: none;
 }
 
+p {
+  line-height: var(--lh-prose);
+}
+
 .hue-0 { --hue: var(--h0); }
 .hue-1 { --hue: var(--h1); }
 .hue-2 { --hue: var(--h2); }
@@ -121,21 +159,20 @@ ul {
 .top {
   display: grid;
   grid-template-columns: 1fr auto;
-  gap: 6px 12px;
+  gap: var(--s3) var(--s4);
   align-items: center;
-  padding: max(14px, env(safe-area-inset-top)) 16px 10px;
+  padding: max(var(--s4), env(safe-area-inset-top)) var(--s4) var(--s4);
 }
 
 .top h1 {
-  font-size: clamp(1.6rem, 6vw, 2.4rem);
-  font-weight: 750;
-  font-stretch: 78%;
+  font-size: clamp(var(--t-3), 6.18vw, var(--t-4));
+  font-weight: 800;
   line-height: 1;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.025em;
 }
 
 .top h1 span {
-  font-weight: 350;
+  font-weight: 400;
   color: var(--ink-2);
 }
 
@@ -144,7 +181,7 @@ ul {
   align-items: center;
   gap: 2px;
   min-width: 0;
-  margin-left: -8px;
+  margin-left: calc(var(--s3) * -1);
 }
 
 .top-day h1 {
@@ -153,18 +190,18 @@ ul {
 
 .nav {
   flex: none;
-  width: 36px;
-  height: 44px;
+  width: var(--c-sm);
+  height: var(--c);
   border: 0;
-  border-radius: 10px;
+  border-radius: var(--r2);
   background: none;
   color: var(--ink-2);
 }
 
 .nav svg {
   display: block;
-  width: 11px;
-  height: 18px;
+  width: 10px;
+  height: 16px;
   margin: 0 auto;
   fill: none;
   stroke: currentColor;
@@ -176,28 +213,27 @@ ul {
 .btn-today {
   grid-column: 1 / -1;
   justify-self: start;
-  min-height: 32px;
-  font-size: 0.84rem;
+  min-height: var(--c-sm);
   border-color: var(--now);
   color: var(--now);
 }
 
 .top-actions {
   display: flex;
-  gap: 8px;
+  gap: var(--s3);
 }
 
 .tally {
   grid-column: 1 / -1;
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 22px;
-  font-size: 0.86rem;
+  gap: var(--s1) var(--s5);
+  font-size: var(--t-sm);
 }
 
 .tally div {
   display: flex;
-  gap: 6px;
+  gap: var(--s2);
   align-items: baseline;
 }
 
@@ -206,7 +242,7 @@ ul {
 }
 
 .tally dd {
-  font-weight: 650;
+  font-weight: 700;
 }
 
 .tally small {
@@ -215,13 +251,13 @@ ul {
 }
 
 .btn {
-  min-height: 40px;
-  padding: 0 14px;
-  border: 1.5px solid var(--rule);
+  min-height: var(--c);
+  padding: 0 var(--s4);
+  border: var(--line) solid var(--rule);
   border-radius: 999px;
   background: var(--surface);
   font-weight: 600;
-  font-size: 0.92rem;
+  font-size: var(--t-sm);
   white-space: nowrap;
 }
 
@@ -247,28 +283,30 @@ ul {
 }
 
 .btn-plus {
-  width: 44px;
+  width: var(--c);
   padding: 0;
-  font-size: 1.4rem;
+  font-size: var(--t-3);
+  font-weight: 400;
   line-height: 1;
 }
 
 .notices {
-  padding: 0 16px 8px;
+  padding: 0 var(--s4) var(--s3);
   display: grid;
-  gap: 6px;
+  gap: var(--s2);
 }
 
 .notice {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 8px 12px;
-  border-radius: 10px;
+  gap: var(--s4);
+  padding: var(--s3) var(--s4);
+  border-radius: var(--r2);
   background: var(--surface);
-  border: 1.5px solid var(--rule);
-  font-size: 0.92rem;
+  border: var(--line) solid var(--rule);
+  font-size: var(--t-sm);
+  line-height: var(--lh);
 }
 
 .notice-bad {
@@ -279,7 +317,7 @@ ul {
 .notice-ask {
   display: grid;
   justify-content: stretch;
-  gap: 8px;
+  gap: var(--s3);
   border-color: var(--now);
 }
 
@@ -287,19 +325,19 @@ ul {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: var(--s3);
 }
 
 .notice-row label {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--s2);
   font-weight: 600;
 }
 
 .notice-row .btn,
 .notice-row input {
-  min-height: 36px;
+  min-height: var(--c-sm);
 }
 
 /* Sits just above the dock for a few seconds after a change that can be taken back. */
@@ -307,18 +345,18 @@ ul {
   position: fixed;
   z-index: 60;
   left: 50%;
-  bottom: calc(var(--dock-h) + 12px);
+  bottom: calc(var(--dock-h) + var(--s4));
   transform: translateX(-50%);
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: var(--s4);
   width: max-content;
-  max-width: calc(100% - 32px);
-  padding: 6px 6px 6px 16px;
+  max-width: calc(100% - 2 * var(--s4));
+  padding: var(--s2) var(--s2) var(--s2) var(--s4);
   border-radius: 999px;
   background: var(--ink);
   color: var(--paper);
-  font-size: 0.92rem;
+  font-size: var(--t-sm);
   font-weight: 600;
 }
 
@@ -330,7 +368,7 @@ ul {
 }
 
 .toast .btn {
-  min-height: 32px;
+  min-height: var(--c-sm);
   border-color: transparent;
   color: var(--ink);
 }
@@ -339,18 +377,18 @@ ul {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 4px 16px 24px;
+  padding: var(--s1) var(--s4) var(--s5);
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   align-content: start;
-  gap: 28px;
+  gap: var(--s6);
 }
 
 .empty {
-  padding: 6px 2px 12px;
+  padding: var(--s2) 2px var(--s3);
   color: var(--ink-2);
-  font-size: 0.95rem;
-  max-width: 44ch;
+  line-height: var(--lh-prose);
+  max-width: 42ch;
 }
 
 /* ---------- task cards ---------- */
@@ -362,13 +400,13 @@ ul {
 
 .cards {
   display: grid;
-  gap: 8px;
+  gap: var(--s3);
 }
 
 .card {
   position: relative;
-  border: 1.5px solid var(--rule);
-  border-radius: 14px;
+  border: var(--line) solid var(--rule);
+  border-radius: var(--r3);
   background: var(--surface);
 }
 
@@ -382,16 +420,18 @@ ul {
   align-items: center;
 }
 
+/* The mark is inset by the same 13px on three sides: (68 - 42) / 2. */
 .card-main {
+  --inset: calc((var(--c-xl) - var(--c)) / 2);
   flex: 1;
   min-width: 0;
-  min-height: 64px;
+  min-height: var(--c-xl);
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 8px 6px 8px 8px;
+  gap: var(--s4);
+  padding: var(--s3) var(--s2) var(--s3) var(--inset);
   border: 0;
-  border-radius: 12px;
+  border-radius: calc(var(--r3) - var(--line));
   background: none;
   text-align: left;
 }
@@ -399,18 +439,18 @@ ul {
 /* The start mark is the task's colour, big enough to hit without aiming. */
 .card-mark {
   flex: none;
-  width: 48px;
-  height: 48px;
+  width: var(--c);
+  height: var(--c);
   display: grid;
   place-items: center;
-  border-radius: 10px;
+  border-radius: var(--r2);
   background: var(--hue);
   color: var(--on-hue);
 }
 
 .card-mark svg {
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   fill: currentColor;
 }
 
@@ -426,39 +466,40 @@ ul {
   flex: 1;
   min-width: 0;
   display: grid;
-  gap: 1px;
+  gap: 2px;
 }
 
 .card-text strong {
-  font-size: 1.08rem;
+  font-size: var(--t-1);
   font-weight: 700;
-  line-height: 1.2;
+  line-height: 1.272;
+  letter-spacing: -0.01em;
   overflow-wrap: anywhere;
 }
 
 .card-text small {
   color: var(--ink-2);
-  font-size: 0.84rem;
+  font-size: var(--t-sm);
 }
 
 .card-text small.is-over {
   color: var(--now);
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .card-main time {
   flex: none;
-  padding-right: 4px;
-  font-size: 1.5rem;
-  font-weight: 750;
-  font-stretch: 75%;
+  padding-right: var(--s2);
+  font-size: var(--t-3);
+  font-weight: 700;
+  letter-spacing: -0.02em;
   line-height: 1;
 }
 
 .card.is-running {
   border-color: var(--ink);
   background: color-mix(in srgb, var(--hue) 20%, var(--surface));
-  box-shadow: 0 0 0 1.5px var(--ink);
+  box-shadow: 0 0 0 var(--line) var(--ink);
 }
 
 .card.is-done .card-mark {
@@ -474,23 +515,23 @@ ul {
 
 .card.is-lifted {
   border-color: var(--ink);
-  box-shadow: 0 10px 24px rgb(8 16 24 / 0.22);
+  box-shadow: 0 10px 26px rgb(8 16 24 / 0.22);
 }
 
 .card-icon {
   flex: none;
-  width: 40px;
-  height: 48px;
+  width: var(--c);
+  height: var(--c);
   display: grid;
   place-items: center;
   border: 0;
-  border-radius: 10px;
+  border-radius: var(--r2);
   background: none;
   color: var(--ink-2);
 }
 
 .card-icon:last-child {
-  margin-right: 4px;
+  margin-right: var(--s1);
 }
 
 .card-icon svg {
@@ -510,57 +551,58 @@ ul {
 
 .card-tool {
   flex: none;
-  min-height: 34px;
-  padding: 0 10px;
-  font-size: 0.82rem;
+  min-height: var(--c-sm);
+  padding: 0 var(--s3);
 }
 
+/* Lined up under the title: inset + mark + gap. */
 .card-project {
+  --inset: calc((var(--c-xl) - var(--c)) / 2);
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px 10px;
-  padding: 0 12px 12px 68px;
+  gap: var(--s2) var(--s3);
+  padding: 0 var(--s4) var(--inset) calc(var(--inset) + var(--c) + var(--s4));
 }
 
 .card-project .bar {
   flex: 1;
-  min-width: 80px;
+  min-width: var(--c-xl);
 }
 
 .card-project small {
-  font-size: 0.84rem;
-  font-weight: 650;
+  font-size: var(--t-sm);
+  font-weight: 600;
 }
 
 .add {
   display: flex;
-  gap: 8px;
-  margin-top: 10px;
+  gap: var(--s3);
+  margin-top: var(--s4);
 }
 
 .add input {
   flex: 1;
   min-width: 0;
-  min-height: 48px;
+  min-height: var(--c-lg);
   background: var(--surface);
 }
 
 .add .btn {
-  min-height: 48px;
+  min-height: var(--c-lg);
 }
 
 /* A section that opens on a tap: Done, and the tasks not on this day. */
 .fold {
   display: flex;
   align-items: center;
-  gap: 8px;
-  min-height: 44px;
-  margin-top: 10px;
+  gap: var(--s3);
+  min-height: var(--c);
+  margin-top: var(--s3);
   padding: 0 2px;
   border: 0;
   background: none;
-  font-weight: 650;
+  font-weight: 600;
   color: var(--ink-2);
 }
 
@@ -585,8 +627,8 @@ ul {
 .other li {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 2px;
+  gap: var(--s3);
+  padding: var(--s2) 2px;
 }
 
 .other-title {
@@ -600,13 +642,12 @@ ul {
 .other-title small {
   display: block;
   color: var(--ink-2);
-  font-size: 0.78rem;
+  font-size: var(--t-xs);
 }
 
 .other .btn {
-  min-height: 34px;
-  padding: 0 10px;
-  font-size: 0.82rem;
+  min-height: var(--c-sm);
+  padding: 0 var(--s3);
 }
 
 /* ---------- log ---------- */
@@ -615,25 +656,25 @@ ul {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding-bottom: 6px;
-  border-bottom: 1.5px solid var(--ink);
+  gap: var(--s4);
+  padding-bottom: var(--s3);
+  border-bottom: var(--line) solid var(--ink);
 }
 
 .log-head h2 {
-  font-size: 1.15rem;
-  font-weight: 750;
-  font-stretch: 85%;
+  font-size: var(--t-2);
+  font-weight: 800;
+  letter-spacing: -0.015em;
+  line-height: 1.272;
 }
 
 .log-head .btn {
-  min-height: 34px;
-  padding: 0 12px;
-  font-size: 0.84rem;
+  min-height: var(--c-sm);
+  padding: 0 var(--s4);
 }
 
 .log .empty {
-  padding-top: 12px;
+  padding-top: var(--s4);
 }
 
 .log-list li + li {
@@ -642,11 +683,11 @@ ul {
 
 .log-row {
   width: 100%;
-  min-height: 48px;
+  min-height: var(--c-lg);
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 6px 2px;
+  gap: var(--s3);
+  padding: var(--s2) 2px;
   border: 0;
   background: none;
   text-align: left;
@@ -654,16 +695,16 @@ ul {
 
 .log-time {
   flex: none;
-  width: 8.2em;
-  font-weight: 650;
+  width: 7.3em;
+  font-weight: 600;
   white-space: nowrap;
 }
 
 .log-time i {
-  margin: 0 0.35em;
+  margin: 0 0.236em;
   font-style: normal;
   font-weight: 400;
-  font-size: 0.84rem;
+  font-size: var(--t-sm);
   color: var(--ink-2);
 }
 
@@ -683,17 +724,17 @@ ul {
 
 .log-deep {
   flex: none;
-  padding: 1px 7px;
+  padding: 1px var(--s2);
   border-radius: 999px;
   background: var(--deep);
   color: var(--on-hue);
-  font-size: 0.74rem;
+  font-size: var(--t-xs);
   font-weight: 700;
 }
 
 .log-dur {
   flex: none;
-  min-width: 4.2em;
+  min-width: 3.2em;
   text-align: right;
   color: var(--ink-2);
 }
@@ -703,11 +744,11 @@ ul {
 .dock {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--s4);
   min-height: var(--dock-h);
-  padding: 10px 16px max(10px, env(safe-area-inset-bottom));
+  padding: var(--s3) var(--s4) max(var(--s3), env(safe-area-inset-bottom));
   background: var(--surface);
-  border-top: 1.5px solid var(--ink);
+  border-top: var(--line) solid var(--ink);
 }
 
 .dock-now {
@@ -715,7 +756,7 @@ ul {
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--s3);
 }
 
 .dock-text {
@@ -725,7 +766,9 @@ ul {
 }
 
 .dock-text strong {
+  font-size: var(--t-1);
   font-weight: 700;
+  letter-spacing: -0.01em;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -733,16 +776,21 @@ ul {
 
 .dock-text small {
   color: var(--ink-2);
-  font-size: 0.8rem;
+  font-size: var(--t-sm);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.dock-text small.is-spent {
+  color: var(--now);
+  font-weight: 600;
+}
+
 .dock time {
-  font-size: 1.7rem;
-  font-weight: 750;
-  font-stretch: 75%;
+  font-size: var(--t-3);
+  font-weight: 700;
+  letter-spacing: -0.02em;
   line-height: 1;
 }
 
@@ -752,7 +800,7 @@ ul {
 
 .dock-actions {
   display: flex;
-  gap: 8px;
+  gap: var(--s3);
 }
 
 .dock-add input {
@@ -762,8 +810,8 @@ ul {
 
 .dot {
   flex: none;
-  width: 12px;
-  height: 12px;
+  width: var(--s3);
+  height: var(--s3);
   border-radius: 3px;
   background: var(--hue);
 }
@@ -773,19 +821,19 @@ ul {
 }
 
 input:not([type='file']) {
-  min-height: 40px;
-  padding: 0 12px;
-  border: 1.5px solid var(--rule);
-  border-radius: 10px;
+  min-height: var(--c);
+  padding: 0 var(--s4);
+  border: var(--line) solid var(--rule);
+  border-radius: var(--r2);
   background: var(--paper);
 }
 
 select.length {
   flex: none;
-  min-height: 40px;
-  padding: 0 8px;
-  border: 1.5px solid var(--rule);
-  border-radius: 10px;
+  min-height: var(--c);
+  padding: 0 var(--s3);
+  border: var(--line) solid var(--rule);
+  border-radius: var(--r2);
   background: var(--paper);
   font-weight: 600;
 }
@@ -793,16 +841,28 @@ select.length {
 @media (max-width: 520px) {
   .dock {
     flex-wrap: wrap;
+    gap: var(--s3);
   }
   .dock-now {
     flex-basis: 100%;
   }
   .dock-actions {
     flex: 1;
+    gap: var(--s2);
   }
   .dock-actions .btn:not(.btn-plus) {
     flex: 1 1 auto;
-    padding: 0 10px;
+    padding: 0 var(--s3);
+  }
+  /* Nothing running: one line, with only the + beside it. */
+  .dock.is-idle {
+    flex-wrap: nowrap;
+  }
+  .dock.is-idle .dock-now {
+    flex-basis: auto;
+  }
+  .dock.is-idle .dock-actions {
+    flex: none;
   }
   .dock-add .btn {
     flex: 1;
@@ -814,7 +874,7 @@ select.length {
 
 /* Hours used, as a filled length of the project's colour. */
 .bar {
-  height: 8px;
+  height: var(--s2);
   border-radius: 3px;
   background: color-mix(in srgb, var(--hue) 18%, var(--paper));
   overflow: hidden;
@@ -835,9 +895,9 @@ select.length {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
-  font-size: 0.86rem;
-  font-weight: 650;
+  gap: var(--s2);
+  font-size: var(--t-sm);
+  font-weight: 600;
   color: var(--now);
 }
 
@@ -845,126 +905,145 @@ select.length {
   flex: 1 1 100%;
 }
 
-.project-spent.is-quiet .btn {
-  border-color: transparent;
-  background: none;
-  padding: 0 4px;
-  color: var(--ink-2);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
 input.hours {
   width: 6.5ch;
   box-sizing: content-box;
-}
-
-.dock-text small.is-spent {
-  color: var(--now);
-  font-weight: 650;
-}
-
-.dialog h3 {
-  margin: 18px 0 0;
-  font-size: 0.95rem;
-  font-weight: 650;
-  color: var(--ink-2);
-}
-
-.fields.stack {
-  display: grid;
-  gap: 10px;
-  margin-top: 14px;
-}
-
-.fields.stack label {
-  justify-content: space-between;
-}
-
-.fields.stack input:not([type='number']) {
-  flex: 1;
-  min-width: 0;
-  max-width: 62%;
-}
-
-.fields input[type='checkbox'] {
-  flex: none;
-  min-height: 0;
-  width: 18px;
-  height: 18px;
-  padding: 0;
-  accent-color: var(--ink);
 }
 
 /* ---------- dialog ---------- */
 
 .dialog {
   box-sizing: border-box;
-  width: min(460px, calc(100% - 24px));
+  width: min(420px, calc(100% - 2 * var(--s3)));
   max-width: none;
-  max-height: calc(100dvh - 24px);
+  max-height: calc(100dvh - 2 * var(--s3));
   overflow: hidden auto;
   overscroll-behavior: contain;
-  padding: 20px;
-  border: 1.5px solid var(--ink);
-  border-radius: 16px;
+  padding: var(--s5);
+  border: var(--line) solid var(--ink);
+  border-radius: var(--r3);
   background: var(--surface);
   color: var(--ink);
+}
+
+.dialog:focus-visible {
+  outline: none;
 }
 
 .dialog::backdrop {
   background: rgb(8 16 24 / 0.45);
 }
 
+.dialog h2 {
+  font-size: var(--t-3);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.272;
+  overflow-wrap: anywhere;
+}
+
+.dialog h3 {
+  margin: var(--s5) 0 0;
+  font-size: var(--t-sm);
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
 .dialog p {
-  margin-top: 10px;
+  margin-top: var(--s3);
 }
 
 .dialog-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
-  margin-top: 14px;
+  gap: var(--s3);
+  margin-top: var(--s4);
 }
 
 .dialog-note {
-  font-size: 0.85rem;
+  font-size: var(--t-sm);
   color: var(--ink-2);
 }
 
 .dialog-danger {
-  margin-top: 22px;
-  padding-top: 14px;
+  margin-top: var(--s5);
+  padding-top: var(--s4);
   border-top: 1px solid var(--rule);
 }
 
 .dialog-close {
   display: flex;
   justify-content: flex-end;
-  margin-top: 18px;
+  margin-top: var(--s5);
 }
 
 .dialog-end {
   justify-content: flex-end;
-  margin-top: 18px;
+  margin-top: var(--s5);
+}
+
+.dialog .notice {
+  margin-top: var(--s4);
+}
+
+.fields label {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  font-weight: 600;
+}
+
+.fields.stack {
+  display: grid;
+  gap: var(--s3);
+  margin-top: var(--s4);
+}
+
+.fields.stack label {
+  justify-content: space-between;
+}
+
+/* The field takes the larger part of the row: 1 / phi. */
+.fields.stack input:not([type='number']):not([type='checkbox']) {
+  flex: 1;
+  min-width: 0;
+  max-width: 61.8%;
+}
+
+.fields.stack select {
+  max-width: 61.8%;
+}
+
+.fields.stack label > span {
+  color: var(--ink-2);
+  font-weight: 400;
+}
+
+.fields input[type='checkbox'] {
+  flex: none;
+  min-height: 0;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  accent-color: var(--ink);
 }
 
 .days {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 4px;
-  margin-top: 14px;
+  gap: var(--s1);
+  margin-top: var(--s3);
 }
 
 .day-chip {
-  min-height: 44px;
+  min-height: var(--c);
   padding: 0;
-  border: 1.5px solid var(--rule);
-  border-radius: 10px;
+  border: var(--line) solid var(--rule);
+  border-radius: var(--r2);
   background: var(--paper);
-  font-size: 0.86rem;
-  font-weight: 650;
+  font-size: var(--t-sm);
+  font-weight: 600;
 }
 
 .day-chip[aria-pressed='true'] {
@@ -973,33 +1052,16 @@ input.hours {
   color: var(--paper);
 }
 
-.fields label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.92rem;
-  font-weight: 600;
-}
-
-.fields.stack select {
-  max-width: 62%;
-}
-
-.fields.stack label > span {
-  color: var(--ink-2);
-  font-weight: 400;
-}
-
-.dialog .notice {
-  margin-top: 14px;
-}
-
+/* Wide screens: tasks and log side by side, split at phi. */
 @media (min-width: 960px) {
+  .top {
+    padding-bottom: var(--s5);
+  }
   .day {
-    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1.618fr) minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr);
     align-content: stretch;
-    gap: 40px;
+    gap: var(--s6);
     overflow: hidden;
     padding-bottom: 0;
   }
@@ -1007,7 +1069,7 @@ input.hours {
   .log {
     min-height: 0;
     overflow-y: auto;
-    padding-bottom: 24px;
+    padding-bottom: var(--s5);
   }
   .log {
     padding-top: 2px;
@@ -1019,8 +1081,4 @@ input.hours {
   .fold::before {
     transition: none;
   }
-}
-
-.dialog:focus-visible {
-  outline: none;
 }
