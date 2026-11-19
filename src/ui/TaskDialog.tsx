@@ -31,6 +31,8 @@ export function TaskDialog({ state, task, title: firstTitle, day, today, dayName
 
   useEffect(() => {
     ref.current?.showModal();
+    // Opening to change something should not bring the keyboard up: focus the dialog, not its first field.
+    if (task) ref.current?.focus();
   }, []);
 
   const budgetMin = isProject ? Math.round(Number(hours) * 60) : null;
@@ -52,7 +54,7 @@ export function TaskDialog({ state, task, title: firstTitle, day, today, dayName
   };
 
   return (
-    <dialog ref={ref} className="dialog" onClose={onClose}>
+    <dialog ref={ref} className="dialog" tabIndex={-1} onClose={onClose}>
       <form onSubmit={save}>
         <h2>{task ? (project ? 'Change project' : 'Change task') : 'New task'}</h2>
         <div className="fields stack">

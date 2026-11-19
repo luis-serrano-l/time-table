@@ -43,6 +43,8 @@ export function EntryDialog({ state, day, now, segId, onClose }: Props) {
 
   useEffect(() => {
     ref.current?.showModal();
+    // Opening to change something should not bring the keyboard up: focus the dialog, not its first field.
+    if (segId) ref.current?.focus();
   }, []);
 
   if (segId && !seg) return null;
@@ -80,7 +82,7 @@ export function EntryDialog({ state, day, now, segId, onClose }: Props) {
   }
 
   return (
-    <dialog ref={ref} className="dialog" onClose={onClose}>
+    <dialog ref={ref} className="dialog" tabIndex={-1} onClose={onClose}>
       <form onSubmit={save}>
         <h2>{what}</h2>
         <div className="fields stack">
