@@ -46,6 +46,35 @@ describe('reduce', () => {
     expect(s.parked).toBeNull();
   });
 
+  it('an interruption can begin earlier than it was written down, inside the task it broke into', () => {
+    const s = reduce([
+      add('a'),
+      start('a', 0),
+      ev({ type: 'interruption.started', at: T0 + 14 * MIN, startAt: T0 + 10 * MIN, away: true }),
+      at('interruption.ended', 14),
+    ]);
+    expect(s.segments.map((x) => [x.kind, x.start - T0, x.away])).toEqual([
+      ['task', 0, undefined],
+      ['interruption', 10 * MIN, true],
+      ['task', 14 * MIN, undefined],
+    ]);
+    expect(s.segments[0].end).toBe(T0 + 10 * MIN);
+    // Never before the task began.
+    const early = reduce([add('a'), start('a', 5), ev({ type: 'interruption.started', at: T0 + 9 * MIN, startAt: T0 })]);
+    expect(early.segments[1].start).toBe(T0 + 5 * MIN);
+  });
+
+  it('a task asks for focus only when told to', () => {
+    const s = reduce([
+      add('a'),
+      ev({ type: 'task.added', at: T0, taskId: 'b', title: 'b', focus: true }),
+      ev({ type: 'task.edited', at: T0 + 1, taskId: 'a', focus: true }),
+      ev({ type: 'task.edited', at: T0 + 2, taskId: 'b', title: 'c' }),
+    ]);
+    expect([s.tasks.get('a')!.focus, s.tasks.get('b')!.focus]).toEqual([true, true]);
+    expect(reduce([add('a')]).tasks.get('a')!.focus).toBe(false);
+  });
+
   it('does not resume anything after an interruption that started from idle', () => {
     const s = reduce([add('a'), at('interruption.started', 0), at('interruption.ended', 3)]);
     expect(s.open).toBeNull();

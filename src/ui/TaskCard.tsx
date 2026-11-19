@@ -49,6 +49,7 @@ export function TaskCard({ state, entry, day, now, ms, mode, running, drag, onMo
     if (task.estimateMin !== null) meta.push(`about ${dur(task.estimateMin * 60000)}`);
   } else if (task.estimateMin !== null) meta.push(`${dur(ms)} of ${dur(task.estimateMin * 60000)}`);
   else if (ms >= 30000 || running) meta.push(mode === 'run' ? `${dur(ms)} today` : dur(ms));
+  if (task.focus) meta.push('focus');
   if (rule?.days.length) meta.push(daysText(rule.days));
   if (entry.carriedFrom) meta.push(`from ${dayWords(entry.carriedFrom).weekday}`);
 

@@ -48,6 +48,7 @@ function apply(s: Working, e: LogEvent) {
         id: e.taskId,
         title: e.title,
         estimateMin: num(e.estimateMin) && e.estimateMin > 0 ? e.estimateMin : null,
+        focus: e.focus === true,
         done: false,
         removed: false,
         createdAt: e.at,
@@ -61,6 +62,7 @@ function apply(s: Working, e: LogEvent) {
       if (e.title !== undefined) t.title = e.title;
       if (e.estimateMin === null) t.estimateMin = null;
       else if (num(e.estimateMin) && e.estimateMin > 0) t.estimateMin = e.estimateMin;
+      if (typeof e.focus === 'boolean') t.focus = e.focus;
       return;
     }
     case 'task.done': {
@@ -159,12 +161,17 @@ function apply(s: Working, e: LogEvent) {
       close(s, num(e.endAt) ? Math.min(e.endAt, e.at) : e.at);
       s.parked = null;
       return;
-    case 'interruption.started':
+    case 'interruption.started': {
       if (s.open?.kind === 'interruption') return;
       s.parked = s.open?.kind === 'task' ? (s.open.taskId ?? null) : null;
-      close(s, e.at);
-      openSegment(s, { id: e.id, kind: 'interruption', start: e.at });
+      // It can begin earlier than it was written down, but only inside the task it broke into.
+      const from = s.open && num(e.startAt) ? Math.max(s.open.start, Math.min(e.startAt, e.at)) : e.at;
+      close(s, from);
+      const seg: Segment = { id: e.id, kind: 'interruption', start: from };
+      if (e.away === true) seg.away = true;
+      openSegment(s, seg);
       return;
+    }
     case 'interruption.ended': {
       if (s.open?.kind !== 'interruption') return;
       const back = s.parked;

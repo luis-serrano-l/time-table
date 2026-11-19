@@ -63,3 +63,8 @@ export function dayWords(key: string): { weekday: string; date: string } {
     date: date.toLocaleDateString('en', { day: 'numeric', month: 'long' }),
   };
 }
+
+/** A short absence: "40s", then as dur. */
+export function brief(ms: number): string {
+  return ms < 60000 ? `${Math.max(1, Math.round(ms / 1000))}s` : dur(ms);
+}

@@ -49,7 +49,7 @@ export function EntryDialog({ state, day, now, segId, onClose }: Props) {
 
   if (segId && !seg) return null;
   const task = seg?.taskId ? state.tasks.get(seg.taskId) : undefined;
-  const what = seg ? (seg.kind === 'interruption' ? 'Interruption' : (task?.title ?? 'Task')) : 'Add an entry';
+  const what = seg ? (seg.kind === 'interruption' ? (seg.away ? 'Left the app' : 'Interruption') : (task?.title ?? 'Task')) : 'Add an entry';
   const running = !!seg && seg.end === undefined;
 
   function save(e: FormEvent) {

@@ -40,6 +40,7 @@ them the timetable that writes itself as you work.
 | Give a task an estimate | **Options** when adding, or the three dots on the task. It then shows "12m of 30m". |
 | Repeat a task | In the same place, choose the days. It comes up on those days by itself, and **Done for today** ends it for that day only. |
 | Work off a project | **Options**, tick *It is a project*, and give it a total of hours. Put it on the days you work on it, or let it repeat. Only time you log uses up the hours. When they run out, **Finish project** or **Add time**. |
+| Keep yourself on a task | The three dots, then tick **Focus**. While it runs it fills the screen, the screen stays on, and the only ways out are **Pause**, **Finish** and **Interruption**. A web app cannot stop you leaving, so it counts it: time away from the app is logged as *Left the app*, an interruption. Away for more than an hour and the task is stopped at the moment you left. For a hard lock, add your phone's own: *App pinning* on Android, *Guided Access* on iPhone. |
 | Take a task off the day | The three dots, then **Take off today**. It waits under **Not on today**. |
 | Correct the log | Tap an entry under **What happened** to change when it started or ended, or delete it. **Add entry** writes in work you forgot to time. Entries cannot overlap. |
 | Take something back | **Undo**, shown for a few seconds after you delete, take off or finish. |

@@ -27,6 +27,7 @@ export function TaskDialog({ state, task, title: firstTitle, day, today, dayName
   const [estimate, setEstimate] = useState<number | null>(task?.estimateMin ?? null);
   const [days, setDays] = useState<number[]>(() => (task ? (activeRule(state, task.id)?.days ?? []) : []));
   const [isProject, setIsProject] = useState(!!project);
+  const [focus, setFocus] = useState(task?.focus ?? false);
   const [hours, setHours] = useState(project ? String(project.budgetMin / 60) : '10');
 
   useEffect(() => {
@@ -41,7 +42,7 @@ export function TaskDialog({ state, task, title: firstTitle, day, today, dayName
   function save(e: FormEvent) {
     e.preventDefault();
     if (!valid) return;
-    const input = { title: title.trim(), estimateMin: estimate, days, budgetMin };
+    const input = { title: title.trim(), estimateMin: estimate, days, budgetMin, focus };
     // A rule starts on the day on screen, never on one already gone.
     if (task) actions.editTask(task.id, input, day < today ? today : day);
     else actions.addTask(day, input);
@@ -79,6 +80,10 @@ export function TaskDialog({ state, task, title: firstTitle, day, today, dayName
         </p>
 
         <div className="fields stack">
+          <label>
+            Focus: fill the screen while it runs, and log it when I leave the app
+            <input type="checkbox" checked={focus} onChange={(e) => setFocus(e.target.checked)} />
+          </label>
           {!project && (
             <label>
               It is a project with a total of hours

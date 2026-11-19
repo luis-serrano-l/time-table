@@ -29,7 +29,7 @@ export function DayLog({ state, day, today, now, segs }: Props) {
       <ol className="log-list">
         {segs.map((s) => {
           const task = s.taskId ? state.tasks.get(s.taskId) : undefined;
-          const what = s.kind === 'interruption' ? 'Interruption' : (task?.title ?? 'Task');
+          const what = s.kind === 'interruption' ? (s.away ? 'Left the app' : 'Interruption') : (task?.title ?? 'Task');
           const deep = s.kind === 'task' && s.wholeMs >= DEEP_MIN * 60000;
           const from = timeOf(s.start);
           const to = s.running ? 'now' : timeOf(s.end);

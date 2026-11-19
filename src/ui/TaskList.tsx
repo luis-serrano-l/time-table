@@ -55,7 +55,7 @@ export function TaskList({ state, day, today, dayName, now, entries, perTask }: 
     e.preventDefault();
     const t = title.trim();
     if (!t) return;
-    actions.addTask(day, { title: t, estimateMin: null, days: [], budgetMin: null });
+    actions.addTask(day, { title: t, estimateMin: null, days: [], budgetMin: null, focus: false });
     setTitle('');
   }
 

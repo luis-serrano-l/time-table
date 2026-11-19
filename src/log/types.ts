@@ -8,8 +8,8 @@ type Base = { id: string; at: number };
 
 export type LogEvent =
   /** `estimateMin` is optional: a task needs only a name. Null takes an estimate away. */
-  | (Base & { type: 'task.added'; taskId: string; title: string; estimateMin?: number })
-  | (Base & { type: 'task.edited'; taskId: string; title?: string; estimateMin?: number | null })
+  | (Base & { type: 'task.added'; taskId: string; title: string; estimateMin?: number; focus?: boolean })
+  | (Base & { type: 'task.edited'; taskId: string; title?: string; estimateMin?: number | null; focus?: boolean })
   /** With `day`, done for that day only: a repeating task is finished again each day. */
   | (Base & { type: 'task.done'; taskId: string; done: boolean; day?: DayKey })
   /** `removed: false` brings a deleted task back. */
@@ -36,7 +36,11 @@ export type LogEvent =
   | (Base & { type: 'seg.edited'; segId: string; start?: number; end?: number; removed?: boolean })
   /** A stretch written in by hand, for work that was never timed. Its id is this event's id. */
   | (Base & { type: 'seg.added'; taskId: string; start: number; end: number })
-  | (Base & { type: 'interruption.started' })
+  /**
+   * `startAt` says the interruption really began earlier than this event.
+   * `away` marks one the app wrote itself, because a focus task was left behind.
+   */
+  | (Base & { type: 'interruption.started'; startAt?: number; away?: boolean })
   | (Base & { type: 'interruption.ended' });
 
 export type Task = {
@@ -44,6 +48,8 @@ export type Task = {
   title: string;
   /** How long it is expected to take, if anyone said. */
   estimateMin: number | null;
+  /** Fills the screen while it runs, and leaving the app is logged. */
+  focus: boolean;
   done: boolean;
   /** When it was finished for good. */
   doneAt?: number;
@@ -61,6 +67,8 @@ export type Segment = {
   taskId?: string;
   start: number;
   end?: number; // undefined while running
+  /** An interruption that was the app being left during a focus task. */
+  away?: boolean;
 };
 
 export type Plan = { taskIds: string[] };

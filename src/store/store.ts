@@ -112,6 +112,8 @@ export type TaskInput = {
   days: number[];
   /** Total minutes, for a project. */
   budgetMin: number | null;
+  /** Fill the screen while it runs, and log it when the app is left. */
+  focus: boolean;
 };
 
 export const actions = {
@@ -142,7 +144,9 @@ export const actions = {
   /** A new task. One that repeats, or a project with set days, comes up by its rule; anything else goes on `day`. */
   addTask(day: DayKey, t: TaskInput) {
     const taskId = uid();
-    const items: New[] = [{ type: 'task.added', taskId, title: t.title, estimateMin: t.estimateMin ?? undefined }];
+    const items: New[] = [
+      { type: 'task.added', taskId, title: t.title, estimateMin: t.estimateMin ?? undefined, focus: t.focus || undefined },
+    ];
     if (t.budgetMin) items.push({ type: 'project.set', taskId, budgetMin: t.budgetMin });
     if (t.days.length) items.push({ type: 'rule.set', taskId, from: day, days: t.days });
     if (!t.days.includes(weekday(day))) items.push({ type: 'plan.set', day, taskIds: [...planFor(day).taskIds, taskId] });
@@ -155,6 +159,7 @@ export const actions = {
     const items: New[] = [];
     if (t.title !== task.title) items.push({ type: 'task.edited', taskId, title: t.title });
     if (t.estimateMin !== task.estimateMin) items.push({ type: 'task.edited', taskId, estimateMin: t.estimateMin });
+    if (t.focus !== task.focus) items.push({ type: 'task.edited', taskId, focus: t.focus });
     if (t.budgetMin && t.budgetMin !== snap.state.projects.get(taskId)?.budgetMin) {
       items.push({ type: 'project.set', taskId, budgetMin: t.budgetMin });
     }
@@ -252,6 +257,10 @@ export const actions = {
   undo() {
     const items = inverse;
     if (items) append(...items);
+  },
+  /** The app was left at `leftAt` while a focus task ran, and has just come back: that time was an interruption. */
+  away(leftAt: number) {
+    append({ type: 'interruption.started', startAt: leftAt, away: true }, { type: 'interruption.ended' });
   },
   /** The timer was forgotten: the work really ended at `endAt`. */
   stopAt(endAt: number) {

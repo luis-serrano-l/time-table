@@ -226,6 +226,32 @@ try {
   await page.getByRole('button', { name: 'Put Write the report on today' }).click();
   assert.equal(await card('Write the report').count(), 1);
 
+  // A focus task takes the screen, and time away from the app goes in the log
+  const visible = (v) =>
+    page.evaluate((v) => {
+      Object.defineProperty(document, 'visibilityState', { value: v, configurable: true });
+      document.dispatchEvent(new Event('visibilitychange'));
+    }, v);
+  await page.getByRole('button', { name: 'Change Review pull requests' }).click();
+  await page.getByLabel(/^Focus/).check();
+  await shot('16-focus-option');
+  await page.getByRole('button', { name: 'Save' }).click();
+  await page.getByRole('button', { name: /^Review pull requests.*Start$/ }).click();
+  const focus = page.locator('.focus');
+  await expect(focus, 'Review pull requests');
+  assert.equal(await dock.count(), 0);
+  await page.clock.fastForward('05:00');
+  await expect(focus, '5:00');
+  await shot('17-focus');
+  await visible('hidden');
+  await page.clock.fastForward('04:00');
+  await visible('visible');
+  await expect(focus, 'You left for 4m');
+  await expect(focus, '0:0');
+  await focus.getByRole('button', { name: 'Pause' }).click();
+  await expect(dock, 'Nothing running');
+  await expect(page.locator('.log'), 'Left the app');
+
   // Next morning: what was left unfinished is already on today, and says where from
   await page.clock.fastForward('19:00:00');
   await expect(page.locator('h1'), 'Thursday');

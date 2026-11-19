@@ -5,9 +5,11 @@ import { applyUpdate, useUpdateWaiting } from '../pwa/register';
 import { actions, useLog } from '../store/store';
 import { DataDialog } from './DataDialog';
 import { Dock } from './Dock';
+import { Focus } from './Focus';
 import { dayWords, dur } from './format';
 import { DayLog } from './DayLog';
 import { StalePrompt } from './StalePrompt';
+import { focusTask, useFocus } from './useFocus';
 import { useStale } from './useStale';
 import { TaskList } from './TaskList';
 
@@ -54,9 +56,16 @@ export function App() {
     running?.estimateMin ?? undefined,
     running && (todayStats.perTask.get(running.id) ?? 0),
   );
+  const away = useFocus(state, ready);
+  const focused = focusTask(state);
   const go = (d: DayKey) => setViewDay(d === today ? null : d);
 
   if (!ready) return <div className="boot" aria-busy="true" />;
+
+  // A focus task takes the screen, unless the app needs to ask about a forgotten timer.
+  if (focused && !stale) {
+    return <Focus state={state} task={focused} now={now} ms={todayStats.perTask.get(focused.id) ?? 0} note={away.note?.text} />;
+  }
 
   return (
     <div className="app">
@@ -109,7 +118,7 @@ export function App() {
         </dl>
       </header>
 
-      {(error || updateWaiting || stale) && (
+      {(error || updateWaiting || stale || away.note) && (
         <div className="notices">
           {stale && (
             <StalePrompt
@@ -119,6 +128,14 @@ export function App() {
               now={now}
               onStillWorking={stillWorking}
             />
+          )}
+          {away.note && (
+            <p className="notice" role="status">
+              {away.note.text}
+              <button className="btn" onClick={away.dismiss}>
+                OK
+              </button>
+            </p>
           )}
           {error && (
             <p className="notice notice-bad" role="alert">
